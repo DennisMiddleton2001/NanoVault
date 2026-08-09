@@ -1,0 +1,16 @@
+{
+    "paths" : {
+        "active_root"   : "/home/darth-tedious/.sovereign-ai/ComfyUI/models",
+        "staging_cache" : "/home/darth-tedious/.sovereign-ai/vault/download-cache",
+        "vault_dir"     : "/home/darth-tedious/.sovereign-ai/vault/nano-vault"
+    },
+    "fast_hash" : true,
+    "tokens" : {
+        "hf_token"      : "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",
+        "civitai_token" : "ac62720a98e63885c6c406328bd41991"
+    },
+    "dont_evict" : [
+        "something.safetensors",
+        "somethingelse.safetensors"
+    ]
+}
