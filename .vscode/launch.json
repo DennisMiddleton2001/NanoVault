@@ -6,7 +6,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/../ComfyUI/model_utils/nano_arch.py",
-            "args": ["--a","/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/Remove Background (BiRefNet).json"],
+            "args": ["--e","/home/darth-tedious/Downloads/MOCAP_LTX.json"],
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/../ComfyUI/venv/bin/python"
         },

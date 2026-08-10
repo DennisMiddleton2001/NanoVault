@@ -10,10 +10,12 @@ class VaultManager:
     
     def __init__(self, env = None):
         self.env = env
-    
+
+    # Get a sidecar path for a vault file.
     def get_sidecar_path(self, vault_file):
         return f"{vault_file}{self.env.sidecar_ext}"
 
+    # Read hash from sidecar file.
     def read_sidecar(self, file_path):
         sidecar_path = self.get_sidecar_path(file_path)
         if os.path.exists(sidecar_path):

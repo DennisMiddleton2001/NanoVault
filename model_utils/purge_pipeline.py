@@ -32,7 +32,7 @@ class PurgePipeline:
 
             # Step 2: Hunt down and terminate the Vault file & Sidecar
             vault_path = self.vault.find_in_vault(name)
-            if os.path.exists(vault_path):
+            if vault_path and os.path.exists(vault_path):
                 os.remove(vault_path)
                 print(f"{self.env.ico.get("DONE",__class__)} Purged from NanoVault")
 
