@@ -1,8 +1,5 @@
 import os
-import sys
 import math
-import math
-
 from load_model import LoadModel
 
 # Lambda function to calculate the log scale unit

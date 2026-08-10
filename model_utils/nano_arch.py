@@ -1,9 +1,6 @@
 import os
 import sys
 import json
-import hashlib
-import shutil
-import subprocess
 
 # Add model_tools to the system path so libraries import properly.
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -19,7 +16,7 @@ from model_utils.trim_pipeline import TrimPipeline
 from model_utils.test_sweep import AnalyzeModelsFolder
 from model_utils.load_model import LoadModel
 from model_utils.vault_manager import VaultManager
-from workflow import WorkflowParser
+from model_utils.workflow import WorkflowParser
 
 class SovereignManager:
     """The universal runtime management class. Routes CLI commands to the correct pipeline."""

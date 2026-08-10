@@ -1,14 +1,6 @@
 import os
-import sys
 import json
 import struct
-
-current_dir = os.path.dirname(os.path.abspath(__file__))
-comfyui_root = os.path.abspath(os.path.join(current_dir, ".."))
-if comfyui_root not in sys.path:
-    sys.path.insert(0, comfyui_root)
-
-from model_utils.env_config import EnvironmentConfig
 
 class LoadModel:
 

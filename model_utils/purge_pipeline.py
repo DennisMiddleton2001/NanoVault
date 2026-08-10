@@ -1,6 +1,4 @@
 import os
-import sys
-
 from model_utils.vault_manager import VaultManager
 
 class PurgePipeline:

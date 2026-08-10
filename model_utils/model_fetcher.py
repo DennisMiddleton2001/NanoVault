@@ -1,21 +1,6 @@
 import os
-import sys
 import subprocess
-
-# 1. Get the current directory of nano_arch.py (.../ComfyUI/model_utils)
-current_dir = os.path.dirname(os.path.abspath(__file__))
-
-# 2. Go up ONE level to reach the main ComfyUI root
-comfyui_root = os.path.abspath(os.path.join(current_dir, ".."))
-
-# 3. Force Python to look at the ComfyUI root first
-if comfyui_root not in sys.path:
-    sys.path.insert(0, comfyui_root)
-
-from model_utils.env_config import EnvironmentConfig
 from model_utils.log_icons import LogIcons
-from load_model import LoadModel
-
 ico = LogIcons()
 
 class ModelFetcher:

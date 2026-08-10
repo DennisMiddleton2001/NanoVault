@@ -2,13 +2,6 @@ import os
 import sys
 import json
 from pathlib import Path
-
-# Insert ComfyUI root into sys.path so imports work from model_utils folder.
-current_dir = os.path.dirname(os.path.abspath(__file__))
-comfyui_root = os.path.abspath(os.path.join(current_dir, ".."))
-if comfyui_root not in sys.path:
-    sys.path.insert(0, comfyui_root)
-
 from model_utils.banner_gen import Banner
 from model_utils.log_icons import LogIcons
 

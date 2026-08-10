@@ -1,7 +1,4 @@
 import os
-import sys
-import shutil
-
 from model_utils.vault_manager import VaultManager
 
 class TrimPipeline:

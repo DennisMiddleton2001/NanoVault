@@ -1,5 +1,4 @@
 import os
-import sys
 import json
 import posixpath
 
@@ -13,7 +12,7 @@ class WorkflowParser:
 
         if not os.path.exists(self.workflow_path):
             print(f"{self.env.ico.get('ERR',__class__)} Error: Workflow template missing at '{self.workflow_path}'")
-            sys.exit(1)
+            return
 
         # The universal router list
         self.known_folders = [
