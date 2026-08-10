@@ -79,11 +79,10 @@ class LoadModel:
                 header_bytes = f.read(header_size)
                 header_json = json.loads(header_bytes.decode('utf-8'))
 
+                # Safetensors metadata is stored under the special '__metadata__' key
                 if self.debug:
                     self.print_json(header_json)
-
-                # Safetensors metadata is stored under the special '__metadata__' key
-                model_info["metadata"] = header_json.get("__metadata__", {})
+                    model_info["metadata"] = header_json.get("__metadata__", {})
                 
                 # The remaining keys represent the actual tensors
                 metadata_offset = 1 if "__metadata__" in header_json else 0
