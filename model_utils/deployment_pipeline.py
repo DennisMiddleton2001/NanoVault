@@ -10,35 +10,24 @@ from model_utils.workflow import WorkflowParser
 
 class DeploymentPipeline:
 
-    def __init__(self, env = None):
+    def __init__(self, env = None, model_list = None):
+
         self.env = env
         self.vault = VaultManager(self.env)
         self.fetcher = ModelFetcher(self.env)
-
+        self.model_list = model_list
         self.url       = None
         self.subfolder = None
         self.name      = None
 
-        argc = len(sys.argv)
-        if argc > 1:
-            self.command = sys.argv[1]
+    def run(self):
 
-        if self.command in ['--sf'] and argc ==5:
-            self.url        = sys.argv[2]
-            self.subfolder  = sys.argv[3]
-            self.name       = sys.argv[4]
-
-    def run(self, workflow_path):
-        parser = WorkflowParser(self.env, workflow_path)
-        required_models = parser.get_required_models()
-
-        if not required_models:
+        if not self.model_list:
             print(f"{self.env.ico.get("ALRT",__class__)} Audit finished: No model definitions found.")
             return
 
-        print(f"{self.env.ico.get("ACT")} Starting environment setup for: {os.path.basename(workflow_path)}")
         print(self.env.ico.sep(1))
-        for model in required_models:
+        for model in self.model_list:
             name = model['name']
             subfolder = model['directory']
             url = model['url']
@@ -100,7 +89,7 @@ class DeploymentPipeline:
             return False
 
         print(f"{self.env.ico.get('DONE',__class__)} '{name}' Tensor structure validated.")
-
+        
         # 2. Ingest to Vault (Moves file from cache to vault, cache is now empty)
         print(f"{self.env.ico.get('ACT',__class__)} Ingesting to NanoVault.")
         vault_path = self.vault.ingest_to_vault(cached_path, name)

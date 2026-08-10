@@ -36,7 +36,7 @@ class EnvironmentConfig:
 
             # Get fast_hash value.
             self.fast_hash = env.get("fast_hash")
-            
+            self.sidecar_ext = ".xxh128" if self.fast_hash else ".sha256"
             # Initialize tokens for CLI repo access.
             tokens = env.get("tokens")
             self.hf_token = tokens.get("hf_token")
@@ -72,10 +72,8 @@ class EnvironmentConfig:
             print(f"{self.ico.get('ERR')} Staging   : {self.staging_cache} - does not exist")
             config_error = True
 
-        if not self.fast_hash:
-            hash_type = "SHA-256"
-        else:
-            hash_type = "XXH3-128"
+
+        hash_type = self.sidecar_ext
 
         print("")
         print(f"{self.ico.get('KEY')} VAULT_HASH     : {hash_type}")                        

@@ -13,23 +13,14 @@ class AnalyzeModelsFolder:
     def __init__(self, env=None):
         self.env = env
         self.manifest = list()
-        self.command = None
-        argc = len(sys.argv)
 
-        if argc == 2:
-            self.command = sys.argv[1]
-        
-        if self.command in ['--scan-vault']:
-            self.target_dir = os.path.abspath(self.env.vault_dir)
-        elif self.command in ['--scan-active']:
-            self.target_dir = os.path.abspath(self.env.active_root)
-        elif self.command in ['--cleanup']:
-            self.target_dir = os.path.abspath(self.env.active_root)
+    def analyze_vault(self):
+        self.target_dir = os.path.abspath(self.env.vault_dir)
+        return self.run(vault=True)
 
-        print(f"{self.env.ico.get("SRCH")} Scanning '{self.target_dir}'")
-        if not os.path.exists(self.target_dir):
-            print(f"{self.env.ico.get("ERR")} Path not found '{self.target_dir}'.")
-            sys.exit(1)
+    def analyze_active(self):
+        self.target_dir = os.path.abspath(self.env.active_root)
+        return self.run(vault=False)
 
     def print_report(self):
         print(f"{self.env.ico.get("SCAN")} Tensor Report")
@@ -55,57 +46,24 @@ class AnalyzeModelsFolder:
         print(self.env.ico.sep(2))
         print(f"{self.env.ico.get("INFO")} Model Storage Size {human_size(storage_size)}")
 
-    def test_sweep(self):
-        self.run()
-        if self.command not in ['--cleanup']:
-            self.print_report()
-        print(self.env.ico.sep(1))
+    def run(self, vault=False):
+        scan_results = list()
 
-    def delete_mismatch(self, root, name):
-        active_path = os.path.join(root, name)
-        vault_path  = os.path.join(self.env.vault_dir, name)
-        
-        exists_in_active = os.path.exists(active_path)
-        exists_in_vault  = os.path.exists(vault_path)
-
-        marked = 0
-
-        if exists_in_active and not exists_in_vault:
-            print(f"{self.env.ico.get("INFO")} Removing '{active_path}'.")
-            yn = input(f"Confirm Delete (Y/n):")
-            if (yn.lower() in ['y', 'yes','']):
-                os.remove(active_path)
-                marked = 1
-            else:
-                marked = -1
-        
-        return marked
-            
-    def run(self):
-        if not os.path.exists(self.target_dir):
-            return self.manifest
-
-        ingest_list = list()
+        self.target_dir = self.env.active_root if not vault else self.env.vault_dir
 
         for root, _, files in os.walk(self.target_dir):
-            
-
             for file in files:
                 if file.lower().endswith(".safetensors"):
                     fq_path = os.path.join(root, file)
-                    if self.command in ['--cleanup']:
-                        deleted = self.delete_mismatch(root, file)
-                        if deleted == -1:
-                            ingest_list.append(f"python {sys.argv[0]} --si {root} {file}")
-                    else:
-                        loader = LoadModel(self.env, fq_path)
-                        entry = loader.analyze()
-                        self.manifest.append(entry)
+                    loader = LoadModel(self.env, fq_path)
 
-        if len(ingest_list):
-            print("Suggested ingest list...")
-            for l in ingest_list:
-                print(l)
-                            
+                    if (vault):
+                        entry = loader.check_vault_model(file)
+                    else:
+                        entry = loader.check_model_fq_path(fq_path)
+                        
+                    self.manifest.append(entry)
+
+        return self.manifest
 
 

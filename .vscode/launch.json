@@ -1,0 +1,22 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Sovereign: Current File (ComfyUI Venv)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/../ComfyUI/model_utils/nano_arch.py",
+            "args": ["--a","/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/Remove Background (BiRefNet).json"],
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/../ComfyUI/venv/bin/python"
+        },
+        {
+            "name": "Sovereign: NanoArch Gateway (ComfyUI Path)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/../ComfyUI/model_utils/nano_arch.py",
+            "console": "integratedTerminal",
+            "python": "${workspaceFolder}/../ComfyUI/venv/bin/python"
+        }
+    ]
+}
