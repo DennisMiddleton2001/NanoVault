@@ -16,6 +16,7 @@ class EnvironmentConfig:
         self.valid_commands = [
             '--a',
             '--t',
+            '--i',
             '--e',
             '--s',
             '--scan-active',

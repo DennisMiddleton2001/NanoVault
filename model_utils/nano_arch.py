@@ -37,8 +37,11 @@ class SovereignManager:
             clean_path = self.target_path.strip(' \t\n\r"\'')
 
         if '.json' in clean_path.lower():
-            reply = WorkflowParser(self.env, clean_path).get_required_models()
-        elif self.command in ['--a']:
+            model_list = WorkflowParser(self.env, clean_path).get_required_models()
+            if not len(model_list):
+                return False
+
+        if self.command in ['--a']:
             print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
             reply = DeploymentPipeline(self.env, model_list).run()
         elif self.command in ['--t']:
@@ -81,7 +84,7 @@ is the hidden fq workflow path in the list.
 
 '''
 workflow_path = '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/'
-workflow_name = 'Ernie_T2I.json'
+workflow_name = 'Ernie_T2I3.json'
 fq_path = os.path.join(workflow_path, workflow_name)
 
 '''
@@ -89,12 +92,12 @@ command_id depends on the selected workflow and the button pressed
 by the user.  Buttons for global operations should be in the header 
 outside the list view.
 '''
-command_id=0
+command_id=1
 
 commands = [
     ['--a', fq_path],
     ['--t', fq_path],
-    ['--e', fq_path],
+    ['--i', fq_path],
     ['--s', fq_path],
     ['--scan-active'],
     ['--scan-vault'],

@@ -10,10 +10,6 @@ class WorkflowParser:
         self.valid_exts = ('.safetensors', '.ckpt', '.pt', '.pth', '.bin', '.gguf', '.onnx', '.sft')
         self.env = env
 
-        if self.workflow_path and not os.path.exists(self.workflow_path):
-            print(f"{self.env.ico.get('ERR',__class__)} Error: Workflow template missing at '{self.workflow_path}'")
-            return
-
         # The universal router list
         self.known_folders = [
             "checkpoints", "diffusion_models", "unet", "loras",
@@ -48,14 +44,17 @@ class WorkflowParser:
         if workflow_path:
             self.workflow_path = workflow_path
 
-        with open(self.workflow_path, 'r', encoding='utf-8') as f:
-            try:
-                workflow = json.load(f)
-            except json.JSONDecodeError:
-                print(f"{self.env.ico.get('ERR',__class__)} Error: Failed to parse workflow JSON format.")
-                return []
-
-        # --- TIER 1: The Clean Path (ComfyUI-Manager Metadata) ---
+        try:
+            with open(self.workflow_path, 'r', encoding='utf-8') as f:
+                try:
+                    workflow = json.load(f)
+                except Exception as e:
+                    print(f"{self.env.ico.get('ERR',__class__)} {self.workflow_path} - {e}.")
+                    return []
+        except Exception as e:
+            print(f"{self.env.ico.get('ERR',__class__)} {e}")
+            return []
+        
         definitions = workflow.get("definitions", {})
         subgraphs = definitions.get("subgraphs", [])
 
@@ -89,13 +88,11 @@ class WorkflowParser:
                                 if directory and not models_dict[name]["directory"]:
                                     models_dict[name]["directory"] = directory
 
-            # If the clean path actually found models, return them immediately as a unique list!
+            # Done with loop. If the clean path actually found models, return them immediately as a unique list!
             if models_dict:
                 return list(models_dict.values())
-
-        # --- TIER 2: The Brute-Force Fallback (Native ComfyUI Export) ---
-        # If we reach this point, the file has no manager metadata. Unleash the crawler.
-        models_dict = {}
+            else:
+                return []
 
         def extract_models(data):
             if isinstance(data, dict):
