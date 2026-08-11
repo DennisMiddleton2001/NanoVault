@@ -16,6 +16,7 @@ from model_utils.trim_pipeline import TrimPipeline
 from model_utils.test_sweep import AnalyzeModelsFolder
 from model_utils.load_model import LoadModel
 from model_utils.workflow import WorkflowParser
+from model_utils.output_schema import OutputSchema
 # endregion
 
 class SovereignManager:
@@ -36,46 +37,34 @@ class SovereignManager:
             clean_path = self.target_path.strip(' \t\n\r"\'')
 
         if '.json' in clean_path.lower():
-            model_list = WorkflowParser(self.env, clean_path).get_required_models()
-
-        if self.command in ['--a']:
-
+            reply = WorkflowParser(self.env, clean_path).get_required_models()
+        elif self.command in ['--a']:
             print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
-            DeploymentPipeline(self.env, model_list).run()
+            reply = DeploymentPipeline(self.env, model_list).run()
         elif self.command in ['--t']:
-
             print(f"{self.env.ico.get('ACT',__class__)} TRIM: '{clean_path}'")
-            TrimPipeline(self.env, model_list).run()
+            reply = TrimPipeline(self.env, model_list).run()
         elif self.command in ['--e']:
-
             print(f"{self.env.ico.get("ACT",__class__)} Starting template-driven PURGE for: {clean_path}")
             ans = input('This operation will remove NanoVault files.  Confirm (Y/n)')
             if (ans.lower() == 'y' or ans == ''):
-                pipe = PurgePipeline(self.env,model_list).run()
+                reply = PurgePipeline(self.env,model_list).run()
             else:
                 print(f"{self.env.ico.get('ERR',__class__)} Purge aborted.")
         elif self.command in ['--i']:
-
             print(f"{self.env.ico.get("ACT",__class__)} Starting template-driven INGEST for: {clean_path}")
-            IngestPipeline(self.env, model_list).run()
+            reply = IngestPipeline(self.env, model_list).run()
         elif self.command in ['--scan-vault','--scan-active']:
-
-            pipe = AnalyzeModelsFolder(self.env)
-            if ('--scan-vault' in args_list):
-                vault = True
-            else:
-                vault = False
-            print(json.dumps(pipe.run(vault), indent=4))
+            vault = True if '--scan-vault' in args_list else False
+            print(f"{self.env.ico.get("ACT",__class__)} Starting scan for: {"NanoVault" if vault else "Active Configuration"}")
+            reply = AnalyzeModelsFolder(self.env).run(vault)
         elif self.command in ['--model']:
-
             print(f"{self.env.ico.get("INFO",__class__)} Analyzing '{clean_path}'")
-            pipe = LoadModel(self.env, clean_path, debug=True)
-            pipe.analyze()
+            reply = LoadModel(self.env, clean_path, debug=True).analyze()
         elif self.command in ['--scan-workflows']:
-            pipe = WorkflowParser(self.env)
-            workflow_matrix = pipe.scan_workflow_path(clean_path)
+            reply = WorkflowParser(self.env).scan_workflow_path(clean_path)
         else:
-            print(f"{self.env.ico.get("ERR",__class__)} Unrecognized command flag '{self.command}'")
+            print(f"{self.env.ico.get("ERR",__class__)} Unrecognized command line '{self.command}'")
         print()
 
 '''
@@ -100,7 +89,7 @@ command_id depends on the selected workflow and the button pressed
 by the user.  Buttons for global operations should be in the header 
 outside the list view.
 '''
-command_id=6
+command_id=0
 
 commands = [
     ['--a', fq_path],
