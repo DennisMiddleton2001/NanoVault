@@ -77,5 +77,38 @@ class SovereignManager:
             print(f"{self.env.ico.get("ERR",__class__)} Unrecognized command flag '{self.command}'")
 
 
-sm = SovereignManager()
-sm.execute(sys.argv)
+'''
+
+UI defaults to the ComfyUI/user/default/workflows folder, but is selectable with a 
+folder picker or copy/paste.  Once a folder is selected, the available workflows 
+(workflow_name) are shown in a list view (in the main pane).
+
+Each list item has four buttons "add", "trim", "evict", and "storage". The storage option
+populates another colum in the view to show how much active space is occupied for that
+specific Workflow.
+
+is the hidden fq workflow path in the list.
+
+'''
+workflow_path = "/home/darth-tedious/Downloads/
+workflow_name = "Ernie_T2I.json"
+fq_path = os.path.join(workflow_path, workflow_name)
+
+'''
+command_id depends on the selected workflow and the button pressed
+by the user.  Buttons for global operations should be in the header 
+outside the list view.
+'''
+command_id=0
+
+commands = [
+    ["--a", fq_path],
+    ['--t', fq_path],
+    ['--e', fq_path],
+    ['--s', fq_path],
+    ['--scan-active'],
+    ['--scan-vault']
+    ]
+
+retval = SovereignManager().execute(commands[command_id])
+
