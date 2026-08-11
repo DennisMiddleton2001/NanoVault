@@ -25,19 +25,18 @@ class SovereignManager:
 
     def execute(self, args_list):
         self.target_path = None
-        self.command = None
+        self.command = args_list[0].lower()
         argc = len(args_list)
-
-        if not sys.argv[1] in ['--a', '--t', '--e', '--i']:
-            return False
-
-        self.command = sys.argv[1]
         
-        if argc > 2:
-            self.target_path = args_list[2]
+        if not self.command in self.env.valid_commands:
+            return False
+                
+        if argc > 1:
+            self.target_path = args_list[1]
             clean_path = self.target_path.strip(' \t\n\r"\'')
 
-        model_list = WorkflowParser(self.env, clean_path).get_required_models()
+        if '.json' in clean_path.lower():
+            model_list = WorkflowParser(self.env, clean_path).get_required_models()
 
         if self.command in ['--a']:
 
@@ -72,10 +71,12 @@ class SovereignManager:
             print(f"{self.env.ico.get("INFO",__class__)} Analyzing '{clean_path}'")
             pipe = LoadModel(self.env, clean_path, debug=True)
             pipe.analyze()
+        elif self.command in ['--scan-workflows']:
+            pipe = WorkflowParser(self.env)
+            workflow_matrix = pipe.scan_workflow_path(clean_path)
         else:
-
             print(f"{self.env.ico.get("ERR",__class__)} Unrecognized command flag '{self.command}'")
-
+        print()
 
 '''
 
@@ -90,8 +91,8 @@ specific Workflow.
 is the hidden fq workflow path in the list.
 
 '''
-workflow_path = "/home/darth-tedious/Downloads/
-workflow_name = "Ernie_T2I.json"
+workflow_path = '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/'
+workflow_name = 'Ernie_T2I.json'
 fq_path = os.path.join(workflow_path, workflow_name)
 
 '''
@@ -99,15 +100,16 @@ command_id depends on the selected workflow and the button pressed
 by the user.  Buttons for global operations should be in the header 
 outside the list view.
 '''
-command_id=0
+command_id=6
 
 commands = [
-    ["--a", fq_path],
+    ['--a', fq_path],
     ['--t', fq_path],
     ['--e', fq_path],
     ['--s', fq_path],
     ['--scan-active'],
-    ['--scan-vault']
+    ['--scan-vault'],
+    ['--scan-workflows', workflow_path]
     ]
 
 retval = SovereignManager().execute(commands[command_id])

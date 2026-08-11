@@ -6,7 +6,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/../ComfyUI/model_utils/nano_arch.py",
-            "args": ["--e","/home/darth-tedious/Downloads/MOCAP_LTX.json"],
+            "args": [],
             "console": "integratedTerminal",
             "python": "${workspaceFolder}/../ComfyUI/venv/bin/python"
         },

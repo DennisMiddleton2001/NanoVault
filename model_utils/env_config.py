@@ -13,7 +13,15 @@ class EnvironmentConfig:
         config_error = False
         self.ico = LogIcons()
         self.env_path = env_path
-
+        self.valid_commands = [
+            '--a',
+            '--t',
+            '--e',
+            '--s',
+            '--scan-active',
+            '--scan-vault',
+            '--scan-workflows']
+        
         if show_banner:
             Banner()
 
@@ -69,13 +77,13 @@ class EnvironmentConfig:
         hash_type = self.sidecar_ext
 
         print("")
-        print(f"{self.ico.get('KEY')} VAULT_HASH     : {hash_type}")                        
+        print(f"{self.ico.get('KEY')} HASH_TYPE      : {hash_type}")                        
         print(f"{self.ico.get('KEY')} HF_TOKEN       : {self.hf_token[:10]}...")
         print(f"{self.ico.get('KEY')} CIVITAI_TOKEN  : {self.civitai_token[:10]}...")
         print(self.ico.sep(0))        
         if config_error:
             print(f"{self.ico.get('ERR')} Unable to continue - verify paths.")
-            sys.exit(1)
+            
 
 
 

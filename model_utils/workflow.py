@@ -10,7 +10,7 @@ class WorkflowParser:
         self.valid_exts = ('.safetensors', '.ckpt', '.pt', '.pth', '.bin', '.gguf', '.onnx', '.sft')
         self.env = env
 
-        if not os.path.exists(self.workflow_path):
+        if self.workflow_path and not os.path.exists(self.workflow_path):
             print(f"{self.env.ico.get('ERR',__class__)} Error: Workflow template missing at '{self.workflow_path}'")
             return
 
@@ -43,13 +43,16 @@ class WorkflowParser:
 
         return ""
 
-    def get_required_models(self):
+    def get_required_models(self, workflow_path=None):
+        # Not all code paths use the private path.
+        if workflow_path:
+            self.workflow_path = workflow_path
 
         with open(self.workflow_path, 'r', encoding='utf-8') as f:
             try:
                 workflow = json.load(f)
             except json.JSONDecodeError:
-                print(f"{self.env.ico.get("ERR",__class__)} Error: Failed to parse workflow JSON format.")
+                print(f"{self.env.ico.get('ERR',__class__)} Error: Failed to parse workflow JSON format.")
                 return []
 
         # --- TIER 1: The Clean Path (ComfyUI-Manager Metadata) ---
@@ -58,7 +61,7 @@ class WorkflowParser:
 
         if subgraphs:
             nodes = subgraphs[0].get("nodes", [])
-            models_to_restore = []
+            models_dict = {}  # Track unique models by name to prevent duplication at the root
 
             for node in nodes:
                 models = node.get("properties", {}).get("models")
@@ -73,15 +76,22 @@ class WorkflowParser:
                             if not directory and url:
                                 directory = self._guess_directory_from_url(url)
 
-                            models_to_restore.append({
-                                "name": name,
-                                "directory": directory,
-                                "url": url
-                            })
+                            # Ensure exactly one instance per model name
+                            if name not in models_dict:
+                                models_dict[name] = {
+                                    "name": name,
+                                    "directory": directory,
+                                    "url": url
+                                }
+                            else:
+                                if url and not models_dict[name]["url"]:
+                                    models_dict[name]["url"] = url
+                                if directory and not models_dict[name]["directory"]:
+                                    models_dict[name]["directory"] = directory
 
-            # If the clean path actually found models, return them immediately!
-            if models_to_restore:
-                return models_to_restore
+            # If the clean path actually found models, return them immediately as a unique list!
+            if models_dict:
+                return list(models_dict.values())
 
         # --- TIER 2: The Brute-Force Fallback (Native ComfyUI Export) ---
         # If we reach this point, the file has no manager metadata. Unleash the crawler.
@@ -123,3 +133,35 @@ class WorkflowParser:
 
         extract_models(workflow)
         return list(models_dict.values())
+
+    def scan_workflow_path(self, workflow_path=None):
+        scan_results = list()
+
+        target_dir = workflow_path
+        # Basic scan for JSON files.
+        for root, _, files in os.walk(target_dir):
+            for file in files:
+                if file.lower().endswith(".json"):
+                    fq_path = os.path.join(root, file)
+                    models = self.get_required_models(fq_path)
+                    result = {
+                        "fq_path" : fq_path,
+                        "name" : file,
+                        "models" : models
+                    }
+                    scan_results.append(result)
+        self.print_workflow_folder_info(scan_results)
+        return scan_results
+
+    def print_workflow_folder_info(self, scan_results):
+        for workflow in scan_results:
+            name = workflow.get('name')
+            print(f"\n")
+            print(f"WORKFLOW: {name}")
+            print(f"MODELS:")
+            print(self.env.ico.sep(3,40))
+            models = workflow.get('models')
+            for m in models:
+                name = m.get('name')
+                print(f'   {name}')
+            print(self.env.ico.sep(3,40))
