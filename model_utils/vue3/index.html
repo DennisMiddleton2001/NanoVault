@@ -43,6 +43,10 @@
                     </button>
                     <span class="text-[11px] font-mono text-gray-400">Vault Size: <span class="text-gray-200">{{ vaultSize }}</span></span>
                 </div>
+
+                <button @click="openSettings" class="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-gray-300 border border-gray-700 rounded text-sm transition cursor-pointer" title="Sanctuary Settings">
+                    ⚙ Settings
+                </button>
             </div>
         </header>
 
@@ -66,7 +70,6 @@
 
             <div class="overflow-y-auto resize-y min-h-[160px] max-h-[500px] h-64 pr-2 space-y-3 border border-gray-800/60 bg-black/30 p-3 rounded">
                 <div v-for="wf in workflows" :key="wf.name" class="flex items-center justify-between bg-black/40 border border-gray-800 p-4 rounded hover:border-gray-600 transition">
-                    
                     <div>
                         <div class="font-medium text-gray-200">{{ wf.name }}</div>
                         <div class="text-[10px] text-gray-500 font-mono">{{ wf.fq_path }}</div>
@@ -111,20 +114,93 @@
             <span class="text-[#00f0ff]">SECURE LOCAL LINK</span>
         </div>
 
-    </div>
-    <div class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none max-w-sm w-full">
-        <div v-for="toast in toasts" :key="toast.id" 
-            class="pointer-events-auto carbon-bg p-4 rounded-lg border border-[#00f0ff]/40 plasma-glow transition-all duration-300 flex items-start justify-between shadow-2xl">
-            <div class="flex items-start gap-3">
-                <span class="w-2 h-2 rounded-full bg-[#00f0ff] animate-pulse mt-1.5"></span>
-                <div>
-                    <h4 class="text-xs uppercase tracking-wider text-[#00f0ff] font-bold">{{ toast.title }}</h4>
-                    <p class="text-xs text-gray-300 font-mono mt-1">{{ toast.message }}</p>
+        <div class="fixed bottom-6 right-6 z-50 flex flex-col gap-3 pointer-events-none max-w-sm w-full">
+            <div v-for="toast in toasts" :key="toast.id" 
+                 class="pointer-events-auto carbon-bg p-4 rounded-lg border border-[#00f0ff]/40 plasma-glow transition-all duration-300 flex items-start justify-between shadow-2xl">
+                <div class="flex items-start gap-3">
+                    <span class="w-2 h-2 rounded-full bg-[#00f0ff] animate-pulse mt-1.5"></span>
+                    <div>
+                        <h4 class="text-xs uppercase tracking-wider text-[#00f0ff] font-bold">{{ toast.title }}</h4>
+                        <p class="text-xs text-gray-300 font-mono mt-1">{{ toast.message }}</p>
+                    </div>
+                </div>
+                <button @click="removeToast(toast.id)" class="text-gray-500 hover:text-gray-300 text-xs font-mono ml-4">&times;</button>
+            </div>
+        </div>
+
+        <div v-if="showConfigModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+            <div class="carbon-bg border border-[#00f0ff]/60 p-6 rounded-lg max-w-2xl w-full plasma-glow shadow-2xl max-h-[90vh] overflow-y-auto">
+                <div class="flex justify-between items-center mb-4 border-b border-gray-800 pb-3">
+                    <h3 class="text-sm font-bold uppercase tracking-wider text-[#00f0ff]">
+                        {{ isFirstRun ? 'Sanctuary Initialization Required // environment.json' : 'Sanctuary Settings & Environment' }}
+                    </h3>
+                    <button v-if="!isFirstRun" @click="showConfigModal = false" class="text-gray-500 hover:text-gray-300 font-mono text-xs">&times;</button>
+                </div>
+
+                <p class="text-xs text-gray-300 mb-4 font-mono">
+                    {{ isFirstRun 
+                        ? 'Environment configuration not detected. Initialize your local metal paths, cache registers, and tokens below.' 
+                        : 'Manage your sovereign infrastructure paths, tokens, and persistence registers.' }}
+                </p>
+
+                <div class="space-y-4 font-mono text-xs">
+                    <div class="border border-gray-800 p-3 rounded bg-black/40">
+                        <h4 class="text-[11px] uppercase text-[#00f0ff] font-bold mb-2">Infrastructure Paths</h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-gray-400 mb-1 uppercase text-[10px]">Active Root (active_root):</label>
+                                <input type="text" v-model="tempConfig.paths.active_root" class="w-full bg-black/60 border border-gray-700 rounded px-3 py-1.5 text-gray-200 focus:outline-none focus:border-[#00f0ff]" />
+                            </div>
+                            <div>
+                                <label class="block text-gray-400 mb-1 uppercase text-[10px]">Staging Cache (staging_cache):</label>
+                                <input type="text" v-model="tempConfig.paths.staging_cache" class="w-full bg-black/60 border border-gray-700 rounded px-3 py-1.5 text-gray-200 focus:outline-none focus:border-[#00f0ff]" />
+                            </div>
+                            <div>
+                                <label class="block text-gray-400 mb-1 uppercase text-[10px]">Vault Directory (vault_dir):</label>
+                                <input type="text" v-model="tempConfig.paths.vault_dir" class="w-full bg-black/60 border border-gray-700 rounded px-3 py-1.5 text-gray-200 focus:outline-none focus:border-[#00f0ff]" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border border-gray-800 p-3 rounded bg-black/40 flex items-center justify-between">
+                        <div>
+                            <h4 class="text-[11px] uppercase text-[#00f0ff] font-bold">Fast Hash Protocol (fast_hash)</h4>
+                            <p class="text-[10px] text-gray-500">Enable optimized byte hashing for model validation.</p>
+                        </div>
+                        <input type="checkbox" v-model="tempConfig.fast_hash" class="w-4 h-4 accent-[#00f0ff] cursor-pointer" />
+                    </div>
+
+                    <div class="border border-gray-800 p-3 rounded bg-black/40">
+                        <h4 class="text-[11px] uppercase text-[#00f0ff] font-bold mb-2">Authentication Tokens</h4>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="block text-gray-400 mb-1 uppercase text-[10px]">HuggingFace Token (hf_token):</label>
+                                <input type="password" v-model="tempConfig.tokens.hf_token" class="w-full bg-black/60 border border-gray-700 rounded px-3 py-1.5 text-gray-200 focus:outline-none focus:border-[#00f0ff]" />
+                            </div>
+                            <div>
+                                <label class="block text-gray-400 mb-1 uppercase text-[10px]">Civitai Token (civitai_token):</label>
+                                <input type="password" v-model="tempConfig.tokens.civitai_token" class="w-full bg-black/60 border border-gray-700 rounded px-3 py-1.5 text-gray-200 focus:outline-none focus:border-[#00f0ff]" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="border border-gray-800 p-3 rounded bg-black/40">
+                        <h4 class="text-[11px] uppercase text-[#00f0ff] font-bold mb-1">Persistence Registry (persist)</h4>
+                        <p class="text-[10px] text-gray-500 mb-2">Comma-separated safetensors or items to protect from eviction.</p>
+                        <input type="text" v-model="persistInputString" class="w-full bg-black/60 border border-gray-700 rounded px-3 py-1.5 text-gray-200 focus:outline-none focus:border-[#00f0ff]" />
+                    </div>
+                </div>
+
+                <div class="mt-6 flex justify-end gap-3 border-t border-gray-800 pt-4">
+                    <button @click="saveConfiguration" class="px-4 py-2 bg-[#00f0ff]/20 hover:bg-[#00f0ff]/30 text-[#00f0ff] border border-[#00f0ff] rounded transition font-mono text-xs">
+                        Save Sanctuary Config
+                    </button>
                 </div>
             </div>
-            <button @click="removeToast(toast.id)" class="text-gray-500 hover:text-gray-300 text-xs font-mono ml-4">&times;</button>
         </div>
+
     </div>
+
     <script>
         const { createApp, ref } = Vue;
 
@@ -140,6 +216,63 @@
                 const vaultSize = ref("Unscanned");
                 const lastResult = ref("Idle. Ready for command execution.");
                 const logStream = ref([]);
+                const toasts = ref([]);
+
+                // Modal & Environment Configuration State mapping environment.json
+                const showConfigModal = ref(false);
+                const isFirstRun = ref(false);
+                
+                const config = ref({
+                    paths: {
+                        active_root: "/home/darth-tedious/.sovereign-ai/ComfyUI/models/",
+                        staging_cache: "/home/darth-tedious/.cache/nano-arch/",
+                        vault_dir: "/run/media/darth-tedious/5eb65f8c-6e86-46ab-beaa-c2bec31b620c/nano-vault/"
+                    },
+                    fast_hash: true,
+                    tokens: {
+                        hf_token: "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",
+                        civitai_token: "ac62720a98e63885c6c406328bd41991"
+                    },
+                    persist: [
+                        "something.safetensors",
+                        "somethingelse.safetensors"
+                    ]
+                });
+
+                const tempConfig = ref(JSON.parse(JSON.stringify(config.value)));
+                const persistInputString = ref(config.value.persist.join(", "));
+
+                const openSettings = () => {
+                    console.log("Settings gear clicked! Opening modal...");
+                    isFirstRun.value = false;
+                    tempConfig.value = JSON.parse(JSON.stringify(config.value));
+                    persistInputString.value = config.value.persist.map(s => s.trim()).join(", ");
+                    showConfigModal.value = true;
+                };
+
+                const saveConfiguration = () => {
+                    tempConfig.value.persist = persistInputString.value.split(',').map(s => s.trim()).filter(Boolean);
+                    config.value = JSON.parse(JSON.stringify(tempConfig.value));
+                    showConfigModal.value = false;
+                    lastResult.value = "Environment configuration saved to environment.json.";
+                    addToast("Sanctuary Config", "Environment parameters saved successfully.");
+                };
+
+                const triggerFolderBrowse = () => {
+                    lastResult.value = "Triggered folder browse helper.";
+                };
+
+                // Toast helpers
+                const addToast = (title, message, duration = 4000) => {
+                    const id = Date.now();
+                    toasts.value.push({ id, title, message });
+                    setTimeout(() => removeToast(id), duration);
+                };
+
+                const removeToast = (id) => {
+                    const index = toasts.value.findIndex(t => t.id === id);
+                    if (index !== -1) toasts.value.splice(index, 1);
+                };
 
                 // Utility to format raw bytes or strings cleanly
                 const formatBytes = (bytes) => {
@@ -175,9 +308,11 @@
                             workflows.value.find(w => w.fq_path === fqPath).storage = formatBytes(4509715660);
                             lastResult.value = "retval: 4509715660 bytes";
                             logStream.value.push({ type: 'info', text: `[SUCCESS] Storage query returned 4509715660 bytes.` });
+                            addToast("Storage Query", `Queried space for ${fqPath.split('/').pop()}`);
                         } else {
                             lastResult.value = "retval: True";
                             logStream.value.push({ type: 'info', text: `[SUCCESS] retval: True for command ${activeCommand[0]}` });
+                            addToast("Command Executed", `Successfully ran command ${activeCommand[0]}`);
                         }
                     }, 300);
                 };
@@ -188,9 +323,11 @@
                     
                     setTimeout(() => {
                         if (flag === '--scan-active') {
-                            activeSize.value = formatBytes(19758489600); // Formats to ~18.40 GB
+                            activeSize.value = formatBytes(19758489600);
+                            addToast("Global Scan", "Active directory sweep completed.");
                         } else if (flag === '--scan-vault') {
-                            vaultSize.value = formatBytes(45219840512); // Formats to ~42.11 GB
+                            vaultSize.value = formatBytes(45219840512);
+                            addToast("Global Scan", "Vault index verified and updated.");
                         }
                         lastResult.value = "retval: True";
                         logStream.value.push({ type: 'info', text: `[SUCCESS] Global sweep ${flag} completed.` });
@@ -200,6 +337,7 @@
                 const loadWorkflows = () => {
                     lastResult.value = `Scanning directory: ${workflowPath.value}`;
                     logStream.value.push({ type: 'info', text: `> Path updated to: ${workflowPath.value}` });
+                    addToast("Path Loaded", "Workflow directory refreshed.");
                 };
 
                 return {
@@ -209,6 +347,14 @@
                     vaultSize,
                     lastResult,
                     logStream,
+                    toasts,
+                    showConfigModal,
+                    isFirstRun,
+                    tempConfig,
+                    persistInputString,
+                    openSettings,
+                    saveConfiguration,
+                    triggerFolderBrowse,
                     runCommand,
                     executeGlobal,
                     loadWorkflows
