@@ -16,7 +16,7 @@ from model_utils.trim_pipeline import TrimPipeline
 from model_utils.test_sweep import AnalyzeModelsFolder
 from model_utils.load_model import LoadModel
 from model_utils.workflow import WorkflowParser
-from model_utils.output_schema import OutputSchema
+
 # endregion
 
 class SovereignManager:
