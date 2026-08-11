@@ -36,6 +36,12 @@ class IngestPipeline:
             active_file_path = self.vault.find_valid_active_file(subfolder, name)
             if not active_file_path:
                 print(f"{self.env.ico.get("ALRT",__class__)} Not found on active. Cannot ingest.")
+                if self.vault.find_valid_vault_file(name):
+                    print(f"{self.env.ico.get("BOX",__class__)} Existing copy secured in NanoVault.")
+                    response["secured"] += 1
+                    print(self.env.ico.sep(2))
+                    continue
+
                 response['not_active'] += 1
                 print(self.env.ico.sep(2))
                 continue

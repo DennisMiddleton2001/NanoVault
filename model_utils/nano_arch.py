@@ -84,7 +84,7 @@ is the hidden fq workflow path in the list.
 
 '''
 workflow_path = '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/'
-workflow_name = 'Ernie_T2I3.json'
+workflow_name = 'Remove Background (BiRefNet).json'
 fq_path = os.path.join(workflow_path, workflow_name)
 
 '''
@@ -92,12 +92,13 @@ command_id depends on the selected workflow and the button pressed
 by the user.  Buttons for global operations should be in the header 
 outside the list view.
 '''
-command_id=1
+command_id=0
 
 commands = [
     ['--a', fq_path],
     ['--t', fq_path],
     ['--i', fq_path],
+    ['--e', fq_path],
     ['--s', fq_path],
     ['--scan-active'],
     ['--scan-vault'],

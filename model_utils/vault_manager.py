@@ -95,6 +95,7 @@ class VaultManager:
             os.remove(vault_path)
         except:
             pass
+        return True
 
     def ingest_to_vault(self, full_source_path, model_name, delete_source = True):
         
