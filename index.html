@@ -59,7 +59,7 @@
                     <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Workflow Directory Path</label>
                     <div class="flex space-x-3">
                         <input type="text" v-model="workflowPath" class="flex-1 bg-sanctuary-bg border border-sanctuary-border rounded px-4 py-2 font-mono text-sm text-cyan-200 focus:outline-none focus:border-cyan-500 transition">
-                        <button @click="loadWorkflows" class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 text-black font-semibold rounded transition shadow-[0_0_15px_rgba(6,182,212,0.3)]">Load Path</button>
+                        <button @click="loadWorkflowsWithToast" class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 text-black font-semibold rounded transition shadow-[0_0_15px_rgba(6,182,212,0.3)]">Load Path</button>
                     </div>
                 </div>
 
@@ -202,6 +202,7 @@
                     vaultSize.value = formatBytes(totalVault);
                 };
 
+                // Pure, silent data loader for background operations
                 const loadWorkflows = async () => {
                     logStream.value.push({ type: 'info', text: `> Sweeping path: ${workflowPath.value}` });
                     scrollToBottom();
@@ -237,21 +238,32 @@
                             computeGlobalStorage();
                             lastResult.value = `Successfully loaded ${workflows.value.length} workflows.`;
                             logStream.value.push({ type: 'success', text: `[SUCCESS] Sweep complete. Found ${workflows.value.length} items.` });
-                            addToast("Path Loaded", `Found ${workflows.value.length} workflows.`);
+                            return true;
                         } else {
                             lastResult.value = `ERROR: ${data.message}`;
                             logStream.value.push({ type: 'error', text: `[ERROR] ${data.message}` });
-                            addToast("Sanctuary Error", data.message, 6000);
+                            return false;
                         }
                     } catch (error) {
                         lastResult.value = "Gateway Comm Link Failed";
                         logStream.value.push({ type: 'error', text: `[FATAL] Bridge disconnected: ${error.message}` });
-                        addToast("Connection Error", "Cannot reach the local FastAPI backend.", 5000);
+                        return false;
+                    } finally {
+                        scrollToBottom();
                     }
-                    scrollToBottom();
                 };
 
-                // Add, Trim, Evict operations now trigger start and completion toasts!
+                // Explicit manual path load with toast feedback
+                const loadWorkflowsWithToast = async () => {
+                    const success = await loadWorkflows();
+                    if (success) {
+                        addToast("Path Loaded", `Found ${workflows.value.length} workflows.`);
+                    } else {
+                        addToast("Sanctuary Error", lastResult.value, 6000);
+                    }
+                };
+
+                // Clean start and completion toast sequence for Add, Trim, Evict, and Storage actions
                 const runCommand = async (flag, wf) => {
                     let actionName = "Operation";
                     if (flag === '--a') actionName = "Add Workflow";
@@ -259,7 +271,7 @@
                     if (flag === '--e') actionName = "Evict Workflow";
                     if (flag === '--s') actionName = "Storage Check";
 
-                    // Start toast notification
+                    // 1. Start Toast notification
                     addToast(`Starting ${actionName}`, `Target: ${wf.name}`);
 
                     logStream.value.push({ type: 'info', text: `> Executing ${flag} on target: ${wf.name}` });
@@ -277,7 +289,7 @@
                             lastResult.value = `retval: ${JSON.stringify(data.retval)}`;
                             logStream.value.push({ type: 'success', text: `[SUCCESS] Action ${flag} completed for ${wf.name}` });
                             
-                            // Completion toast notification
+                            // 2. Completion Toast notification
                             addToast(`${actionName} Complete`, `Successfully processed ${wf.name}`);
                             
                             // Silent background refresh
@@ -354,7 +366,7 @@
                     persistInputString,
                     openSettings: () => { showConfigModal.value = true; },
                     saveConfiguration,
-                    loadWorkflows,
+                    loadWorkflows: loadWorkflowsWithToast,
                     runCommand,
                     executeGlobal
                 };
