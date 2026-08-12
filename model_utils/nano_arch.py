@@ -68,7 +68,12 @@ class SovereignManager:
         else:
             print(f"{self.env.ico.get("ERR",__class__)} Unrecognized command line '{self.command}'")
             reply = None
-        print(reply)
+
+        try:
+            print(json.dumps(reply, indent =2))
+        except:
+            print(reply)
+
         return reply
 
 '''
