@@ -203,7 +203,6 @@
                 };
 
                 const loadWorkflows = async () => {
-                    lastResult.value = `Scanning directory: ${workflowPath.value}`;
                     logStream.value.push({ type: 'info', text: `> Sweeping path: ${workflowPath.value}` });
                     scrollToBottom();
                     
@@ -236,7 +235,6 @@
                             }); 
 
                             computeGlobalStorage();
-                            
                             lastResult.value = `Successfully loaded ${workflows.value.length} workflows.`;
                             logStream.value.push({ type: 'success', text: `[SUCCESS] Sweep complete. Found ${workflows.value.length} items.` });
                             addToast("Path Loaded", `Found ${workflows.value.length} workflows.`);
@@ -253,7 +251,17 @@
                     scrollToBottom();
                 };
 
+                // Add, Trim, Evict operations now trigger start and completion toasts!
                 const runCommand = async (flag, wf) => {
+                    let actionName = "Operation";
+                    if (flag === '--a') actionName = "Add Workflow";
+                    if (flag === '--t') actionName = "Trim Workflow";
+                    if (flag === '--e') actionName = "Evict Workflow";
+                    if (flag === '--s') actionName = "Storage Check";
+
+                    // Start toast notification
+                    addToast(`Starting ${actionName}`, `Target: ${wf.name}`);
+
                     logStream.value.push({ type: 'info', text: `> Executing ${flag} on target: ${wf.name}` });
                     scrollToBottom();
 
@@ -268,11 +276,12 @@
                         if (data.status === 'SUCCESS') {
                             lastResult.value = `retval: ${JSON.stringify(data.retval)}`;
                             logStream.value.push({ type: 'success', text: `[SUCCESS] Action ${flag} completed for ${wf.name}` });
-                            addToast("Command Executed", `Successfully ran ${flag} on ${wf.name}`);
                             
+                            // Completion toast notification
+                            addToast(`${actionName} Complete`, `Successfully processed ${wf.name}`);
+                            
+                            // Silent background refresh
                             await loadWorkflows();
-                            await executeGlobal('scan-active');
-                            await executeGlobal('scan-vault');
                         } else {
                             lastResult.value = `ERROR: ${data.message}`;
                             logStream.value.push({ type: 'error', text: `[ERROR] Action failed: ${data.message}` });
@@ -300,7 +309,6 @@
                         if (flag === 'scan-active') activeSize.value = formatBytes(data.retval);
                         if (flag === 'scan-vault') vaultSize.value = formatBytes(data.retval);
                         logStream.value.push({ type: 'success', text: `[SUCCESS] Global --${flag} completed.` });
-                        addToast("Global Sweep", `Successfully executed --${flag}`);
                     } catch (err) {
                         logStream.value.push({ type: 'error', text: `[ERROR] Global sweep failed.` });
                     }
