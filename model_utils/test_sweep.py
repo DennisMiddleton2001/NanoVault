@@ -44,9 +44,11 @@ class AnalyzeModelsFolder:
         print(f"{self.env.ico.get("INFO")} Model Storage Size {human_size(storage_size)}")
 
     def run(self, vault=False):
-        scan_results = list()
 
         self.target_dir = self.env.active_root if not vault else self.env.vault_dir
+        group = "vault" if vault else "active"
+        invalid_tensors = list()
+        total_size = 0
 
         for root, _, files in os.walk(self.target_dir):
             for file in files:
@@ -58,9 +60,19 @@ class AnalyzeModelsFolder:
                         entry = loader.check_vault_model(file)
                     else:
                         entry = loader.check_model_fq_path(fq_path)
-                        
-                    self.manifest.append(entry)
+                    
+                    total_size += entry['size']
 
-        return self.manifest
+                    if not entry['valid']:
+                        invalid_tensors.append(file)
+
+                    self.manifest.append(entry)
+        
+        status = {f"{group}_usage" : total_size, 
+                  group : self.manifest, 
+                  "invalid" : invalid_tensors}
+
+        return status
+
 
 

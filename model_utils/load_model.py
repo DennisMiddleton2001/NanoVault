@@ -42,6 +42,7 @@ class LoadModel:
 
     # Used internally to check the fully qualified path of a model file and return its metadata.
     def check_model_fq_path(self, file_path=None):
+
         if file_path:
             self.file_path = file_path
         else:
@@ -51,9 +52,15 @@ class LoadModel:
             "fq_path": self.file_path,
             "valid": False,
             "error": None,
-            "tensor_count": 0,
+            "size" : int(0),
+            "tensor_count": int(0),
             "metadata": {}
         }
+
+        try:
+            model_info["size"] = os.path.getsize(self.file_path)
+        except:
+            pass
 
         if not self.file_path.lower().endswith(".safetensors"):
             print(f"{self.env.ico.get('WRN', __class__)} Unable to scan tensor structure. Running from ComfyUI root?")

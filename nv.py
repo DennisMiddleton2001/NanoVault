@@ -2,6 +2,6 @@
 
 from model_utils.nano_arch import SovereignManager
 
-args = ['--list-workflows', '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/']
+args = ['--query-metal-storage']
 
 results = SovereignManager().execute(args)

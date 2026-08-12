@@ -63,18 +63,10 @@
                     <h1 class="text-base font-bold tracking-wider text-cyan-400 uppercase">NanoVault Sanctuary</h1>
                 </div>
                 <div class="h-5 w-px bg-sanctuary-border"></div>
-                <div class="flex flex-col space-y-1">
-                    <div class="flex items-center space-x-2 text-xs">
-                        <span class="text-slate-400 w-24">WorkflowPath:</span>
-                        <input type="text" v-model="workflowPath" class="bg-sanctuary-bg border border-sanctuary-border rounded px-2 py-0.5 font-mono text-cyan-200 focus:outline-none focus:border-cyan-500 w-96 transition">
-                        <button @click="loadWorkflowsWithToast" class="px-3 py-0.5 bg-cyan-600 hover:bg-cyan-500 text-black font-semibold rounded transition text-xs shadow-[0_0_10px_rgba(6,182,212,0.3)]">Load</button>
-                    </div>
-                    <div class="flex items-center space-x-2 text-xs">
-                        <span class="text-slate-400 w-24">Config.JSON :</span>
-                        <button @click="openSettings" class="text-left flex-1 bg-sanctuary-bg border border-sanctuary-border rounded px-2 py-0.5 font-mono text-slate-300 hover:text-cyan-300 hover:border-cyan-500/50 transition truncate">
-                            environment.json [Click to Edit Payload]
-                        </button>
-                    </div>
+                <div class="flex items-center space-x-2 text-xs">
+                    <span class="text-slate-400 w-24">WorkflowPath:</span>
+                    <input type="text" v-model="workflowPath" class="bg-sanctuary-bg border border-sanctuary-border rounded px-2 py-0.5 font-mono text-cyan-200 focus:outline-none focus:border-cyan-500 w-96 transition">
+                    <button @click="loadWorkflowsWithToast" class="px-3 py-0.5 bg-cyan-600 hover:bg-cyan-500 text-black font-semibold rounded transition text-xs shadow-[0_0_10px_rgba(6,182,212,0.3)]">Load</button>
                 </div>
             </div>
             
@@ -168,25 +160,6 @@
             </div>
         </footer>
 
-        <div v-if="showConfigModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div class="bg-sanctuary-card border border-sanctuary-border rounded-xl max-w-xl w-full p-6 shadow-2xl space-y-5 animate-slide-up">
-                <div class="flex items-center justify-between pb-3 border-b border-sanctuary-border">
-                    <h3 class="text-lg font-semibold text-cyan-400">Sanctuary Configuration</h3>
-                    <button @click="showConfigModal = false" class="text-slate-400 hover:text-white">✕</button>
-                </div>
-                
-                <div class="space-y-3">
-                    <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider">environment.json Payload</label>
-                    <textarea v-model="persistInputString" rows="10" class="w-full bg-sanctuary-bg border border-sanctuary-border rounded p-3 font-mono text-xs text-cyan-200 focus:outline-none focus:border-cyan-500"></textarea>
-                </div>
-
-                <div class="flex justify-end space-x-3 pt-3 border-t border-sanctuary-border">
-                    <button @click="showConfigModal = false" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-sm transition">Cancel</button>
-                    <button @click="saveConfiguration" class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 text-black font-semibold rounded text-sm transition shadow-[0_0_15px_rgba(6,182,212,0.3)]">Save to Metal</button>
-                </div>
-            </div>
-        </div>
-
         <div class="fixed bottom-20 right-5 z-50 space-y-2 pointer-events-none">
             <div v-for="toast in toasts" :key="toast.id" class="pointer-events-auto bg-sanctuary-card border border-cyan-500/50 shadow-[0_0_20px_rgba(6,182,212,0.2)] rounded-lg p-4 flex items-center space-x-3 min-w-[280px]">
                 <div class="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_8px_#06b6d4]"></div>
@@ -211,8 +184,6 @@
                 const lastResult = ref('System initialized under the Oak Tree Shade.');
                 const logStream = ref([]);
                 const toasts = ref([]);
-                const showConfigModal = ref(false);
-                const persistInputString = ref('');
                 const isRefreshing = ref(false);
 
                 // Resizable split pane state (default left width: 520px)
@@ -291,14 +262,14 @@
                         const data = await response.json();
 
                         if (data.status === 'SUCCESS' && data.retval) {
-                            const { active_used, vault_usage } = data.retval;
-                            activeSize.value = formatBytes(active_used);
+                            const { active_usage, vault_usage } = data.retval;
+                            activeSize.value = formatBytes(active_usage);
                             vaultSize.value = formatBytes(vault_usage);
                             lastResult.value = `retval: ${JSON.stringify(data.retval)}`;
                             logStream.value.push({ type: 'success', text: `[SUCCESS] Metal storage queried successfully.` });
                             addToast("Storage Updated", "Metal storage metrics synchronized.");
                         } else {
-                            lastResult.value = `ERROR: ${data.message || 'Unknown error'}</i>`;
+                            lastResult.value = `ERROR: ${data.message || 'Unknown error'}`;
                             logStream.value.push({ type: 'error', text: `[ERROR] Storage query failed: ${data.message}` });
                             addToast("Query Error", data.message || "Failed to query storage.", 5000);
                         }
@@ -343,7 +314,9 @@
                                 };
                             }); 
 
-                            computeGlobalStorage();
+                            // Synchronize true global storage from the metal backend
+                            await queryMetalStorage();
+
                             lastResult.value = `Successfully loaded ${workflows.value.length} workflows from sanctuary path.`;
                             logStream.value.push({ type: 'success', text: `[SUCCESS] Sweep complete. Found ${workflows.value.length} items.` });
                             return true;
@@ -360,6 +333,7 @@
                         scrollToBottom();
                     }
                 };
+
 
                 const loadWorkflowsWithToast = async () => {
                     const success = await loadWorkflows();
@@ -405,28 +379,6 @@
                     scrollToBottom();
                 };
 
-                const saveConfiguration = async () => {
-                    try {
-                        const parsed = JSON.parse(persistInputString.value);
-                        const response = await fetch('/api/save_env', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(parsed)
-                        });
-                        const res = await response.json();
-                        if (res.status === 'SUCCESS') {
-                            addToast("Settings Saved", "environment.json updated on metal.");
-                            showConfigModal.value = false;
-                            logStream.value.push({ type: 'success', text: '[CONFIG] environment.json updated successfully.' });
-                        } else {
-                            addToast("Error", res.message, 5000);
-                        }
-                    } catch (e) {
-                        addToast("Invalid JSON", "Please ensure configuration format is valid JSON.", 5000);
-                    }
-                    scrollToBottom();
-                };
-
                 onMounted(() => {
                     loadWorkflows();
                     queryMetalStorage();
@@ -440,13 +392,9 @@
                     lastResult,
                     logStream,
                     toasts,
-                    showConfigModal,
-                    persistInputString,
                     isRefreshing,
                     leftWidth,
                     startResize,
-                    openSettings: () => { showConfigModal.value = true; },
-                    saveConfiguration,
                     loadWorkflows: loadWorkflowsWithToast,
                     runCommand,
                     queryMetalStorage

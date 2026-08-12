@@ -23,7 +23,8 @@ class EnvironmentConfig:
             '--scan-active',
             '--scan-vault',
             '--scan-workflow',
-            '--list-workflows']
+            '--list-workflows',
+            '--query-metal-storage']
         
         if show_banner:
             Banner()

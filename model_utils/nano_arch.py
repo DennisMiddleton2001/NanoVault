@@ -29,13 +29,15 @@ class SovereignManager:
         self.target_path = None
         self.command = args_list[0].lower()
         argc = len(args_list)
-        
+                
         if not self.command in self.env.valid_commands:
             return False
                 
         if argc > 1:
             self.target_path = args_list[1]
             clean_path = self.target_path.strip(' \t\n\r"\'')
+        else:
+            clean_path = ''
 
         if '.json' in clean_path.lower():
             model_list = WorkflowParser(self.env, clean_path).get_required_models()
@@ -65,6 +67,12 @@ class SovereignManager:
             reply = WorkflowParser(self.env).get_required_models(args_list[1])
         elif self.command in ['--list-workflows']:
             reply = WorkflowParser(self.env).scan_workflow_path(args_list[1])
+        elif self.command in ['--query-metal-storage']:
+            vault_info  = AnalyzeModelsFolder(self.env).run(True)
+            active_info = AnalyzeModelsFolder(self.env).run(False)
+            reply = {"active_usage" : active_info["active_usage"],
+                     "vault_usage" : vault_info["vault_usage"]}
+
         else:
             print(f"{self.env.ico.get("ERR",__class__)} Unrecognized command line '{self.command}'")
             reply = None
