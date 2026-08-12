@@ -18,7 +18,7 @@ class VaultManager:
         return self.clean(os.path.join(self.env.vault_dir, name))
 
     def get_active_path(self, folder, name):
-        return self.clean(os.path.join(self.env.active_root, folder, name))
+         return self.clean(os.path.join(self.env.active_root, folder, name))
 
     def get_sidecar_path(self, vault_file_path):
         return  self.clean(f"{vault_file_path}{self.env.sidecar_ext}")

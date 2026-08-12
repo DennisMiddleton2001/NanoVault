@@ -1,22 +1,15 @@
 {
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Sovereign: Current File (ComfyUI Venv)",
+            "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/../ComfyUI/model_utils/nano_arch.py",
-            "args": [],
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/../ComfyUI/venv/bin/python"
-        },
-        {
-            "name": "Sovereign: NanoArch Gateway (ComfyUI Path)",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/../ComfyUI/model_utils/nano_arch.py",
-            "console": "integratedTerminal",
-            "python": "${workspaceFolder}/../ComfyUI/venv/bin/python"
+            "program": "nv.py",
+            "console": "integratedTerminal"
         }
     ]
 }

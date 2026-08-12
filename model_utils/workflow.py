@@ -42,16 +42,19 @@ class WorkflowParser:
         return ""
 
     def get_required_models(self, workflow_path=None):
-        # Not all code paths use the private path.
-        if workflow_path:
-            self.workflow_path = workflow_path
+        # Resolve the active path to use for this call
+        target_path = workflow_path or self.workflow_path
+        
+        if not target_path:
+            print(f"ERR: No workflow path specified.")
+            return []
 
         try:
-            with open(self.workflow_path, 'r', encoding='utf-8') as f:
+            with open(target_path, 'r', encoding='utf-8') as f:
                 try:
                     workflow = json.load(f)
                 except Exception as e:
-                    print(f"{self.env.ico.get('ERR',__class__)} {self.workflow_path} - {e}.")
+                    print(f"{self.env.ico.get('ERR',__class__)} {target_path} - {e}.")
                     return []
         except Exception as e:
             print(f"{self.env.ico.get('ERR',__class__)} {e}")
@@ -74,20 +77,17 @@ class WorkflowParser:
                             directory = model.get("directory", "")
 
                             # If Manager gave us a URL but forgot the directory, route it!
-                            if not directory and url:
+                            if (not directory or len(directory) < 2) and url:
                                 directory = self._guess_directory_from_url(url)
 
                             # Ensure exactly one instance per model name
                             if name not in models_dict:
-                                active_size = self.get_active_size(directory, name)
-                                vault_size  = self.get_vault_size(name)
-
                                 models_dict[name] = {
                                     "name": name,
                                     "directory": directory,
                                     "url": url,
-                                    "active_size" : active_size,
-                                    "vault_size"  : vault_size
+                                    "active_size" : int(self.get_active_size(directory, name)),
+                                    "vault_size"  : int(self.get_vault_size(name))
                                 }
                             else:
                                 if url and not models_dict[name]["url"]:
@@ -145,7 +145,7 @@ class WorkflowParser:
         # 3. Safely return the populated dictionary
         return list(models_dict.values())
     
-    def scan_workflow_path(self, workflow_path=None, return_models=False):
+    def scan_workflow_path(self, workflow_path=None, return_models=True):
         scan_results = list()
 
         target_dir = workflow_path
@@ -158,13 +158,25 @@ class WorkflowParser:
                         models = self.get_required_models(fq_path)
                     else:
                         models = []
-
+                    
                     result = {
                         "fq_path" : fq_path,
                         "name" : file,
-                        "size" : 9999,
+                        "active_size" : int(0),
+                        "vault_size" : int(0),
                         "models" : models
                     }
+                    for m in models:
+                        # Freaking dev templates. Grrr!!!
+                        try:
+                            result['active_size'] += m['active_size']
+                        except KeyError:
+                            pass
+                        try:
+                            result['vault_size']  += m['vault_size']
+                        except KeyError:
+                            pass                        
+                    print(result)
                     scan_results.append(result)
         self.print_workflow_folder_info(scan_results)
         return scan_results
@@ -186,7 +198,9 @@ class WorkflowParser:
 
     def get_active_size(self, directory, name):
         file_path = self.vault_manager.find_valid_active_file(directory, name)
-        if file_path:
+        if not file_path:
+            return 0
+        else:
             return os.path.getsize(file_path)
 
     def get_vault_size(self, name):
