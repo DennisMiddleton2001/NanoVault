@@ -50,11 +50,7 @@ class SovereignManager:
             reply = TrimPipeline(self.env, model_list).run()
         elif self.command in ['--e']:
             print(f"{self.env.ico.get("ACT",__class__)} Starting template-driven PURGE for: {clean_path}")
-            ans = input('This operation will remove NanoVault files.  Confirm (Y/n)')
-            if (ans.lower() == 'y' or ans == ''):
-                reply = PurgePipeline(self.env,model_list).run()
-            else:
-                print(f"{self.env.ico.get('ERR',__class__)} Purge aborted.")
+            reply = PurgePipeline(self.env,model_list).run()
         elif self.command in ['--i']:
             print(f"{self.env.ico.get("ACT",__class__)} Starting template-driven INGEST for: {clean_path}")
             reply = IngestPipeline(self.env, model_list).run()

@@ -1,15 +1,15 @@
 {
-    "paths" : {
-        "active_root"   : "/home/darth-tedious/.sovereign-ai/ComfyUI/models/",
-        "staging_cache" : "/home/darth-tedious/.cache/nano-arch/",
-        "vault_dir"     : "/run/media/darth-tedious/5eb65f8c-6e86-46ab-beaa-c2bec31b620c/nano-vault/"
+    "paths": {
+        "active_root": "/home/darth-tedious/.sovereign-ai/ComfyUI/models/",
+        "staging_cache": "/home/darth-tedious/.cache/nano-arch/",
+        "vault_dir": "/run/media/darth-tedious/5eb65f8c-6e86-46ab-beaa-c2bec31b620c/nano-vault/"
     },
-    "fast_hash" : true,
-    "tokens" : {
-        "hf_token"      : "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",
-        "civitai_token" : "ac62720a98e63885c6c406328bd41991"
+    "fast_hash": true,
+    "tokens": {
+        "hf_token": "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",
+        "civitai_token": "ac62720a98e63885c6c406328bd41991"
     },
-    "dont_evict" : [
+    "dont_evict": [
         "something.safetensors",
         "somethingelse.safetensors"
     ]
