@@ -4,7 +4,7 @@ import json
 import hashlib
 import xxhash
 import shutil
-from load_model import LoadModel
+from .load_model import LoadModel
 
 class VaultManager:
     

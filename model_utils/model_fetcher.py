@@ -1,6 +1,6 @@
 import os
 import subprocess
-from model_utils.log_icons import LogIcons
+from .log_icons import LogIcons
 ico = LogIcons()
 
 # Manages multi-connection network operations.

@@ -1,6 +1,7 @@
 import os
 import json
 import posixpath
+from .vault_manager import VaultManager
 
 class WorkflowParser:
     """Extracts required model assets using structured metadata, with a brute-force fallback."""
@@ -9,6 +10,7 @@ class WorkflowParser:
         self.workflow_path = workflow_path
         self.valid_exts = ('.safetensors', '.ckpt', '.pt', '.pth', '.bin', '.gguf', '.onnx', '.sft')
         self.env = env
+        self.vault_manager = VaultManager(self.env)
 
         # The universal router list
         self.known_folders = [
@@ -77,10 +79,15 @@ class WorkflowParser:
 
                             # Ensure exactly one instance per model name
                             if name not in models_dict:
+                                active_size = self.get_active_size(directory, name)
+                                vault_size  = self.get_vault_size(name)
+
                                 models_dict[name] = {
                                     "name": name,
                                     "directory": directory,
-                                    "url": url
+                                    "url": url,
+                                    "active_size" : active_size,
+                                    "vault_size"  : vault_size
                                 }
                             else:
                                 if url and not models_dict[name]["url"]:
@@ -94,7 +101,11 @@ class WorkflowParser:
             else:
                 return []
 
+
+        models_dict = dict()
+
         def extract_models(data):
+            # Do NOT initialize models_dict in here!
             if isinstance(data, dict):
                 for value in data.values():
                     extract_models(value)
@@ -128,10 +139,13 @@ class WorkflowParser:
                             if not models_dict[clean_name]["directory"]:
                                 models_dict[clean_name]["directory"] = self._guess_directory_from_url(clean_data)
 
+        # 2. Kick off the recursion. It will populate the outer models_dict
         extract_models(workflow)
+        
+        # 3. Safely return the populated dictionary
         return list(models_dict.values())
-
-    def scan_workflow_path(self, workflow_path=None):
+    
+    def scan_workflow_path(self, workflow_path=None, return_models=False):
         scan_results = list()
 
         target_dir = workflow_path
@@ -140,10 +154,15 @@ class WorkflowParser:
             for file in files:
                 if file.lower().endswith(".json"):
                     fq_path = os.path.join(root, file)
-                    models = self.get_required_models(fq_path)
+                    if return_models:
+                        models = self.get_required_models(fq_path)
+                    else:
+                        models = []
+
                     result = {
                         "fq_path" : fq_path,
                         "name" : file,
+                        "size" : 9999,
                         "models" : models
                     }
                     scan_results.append(result)
@@ -151,6 +170,7 @@ class WorkflowParser:
         return scan_results
 
     def print_workflow_folder_info(self, scan_results):
+
         for workflow in scan_results:
             name = workflow.get('name')
             print(f"\n")
@@ -160,5 +180,19 @@ class WorkflowParser:
             models = workflow.get('models')
             for m in models:
                 name = m.get('name')
+                path = m.get('path')
                 print(f'   {name}')
             print(self.env.ico.sep(3,40))
+
+    def get_active_size(self, directory, name):
+        file_path = self.vault_manager.find_valid_active_file(directory, name)
+        if file_path:
+            return os.path.getsize(file_path)
+
+    def get_vault_size(self, name):
+        file_path = self.vault_manager.find_valid_vault_file(name)
+        if not file_path:
+            return 0
+        else:
+            return os.path.getsize(file_path)
+        

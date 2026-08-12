@@ -1,5 +1,5 @@
 import os
-from model_utils.vault_manager import VaultManager
+from .vault_manager import VaultManager
 
 class PurgePipeline:
     #Orchestrates the complete and permanent removal of workflow assets from all storage.

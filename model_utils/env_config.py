@@ -2,8 +2,9 @@ import os
 import sys
 import json
 from pathlib import Path
-from model_utils.banner_gen import Banner
-from model_utils.log_icons import LogIcons
+
+from .banner_gen import Banner
+from .log_icons import LogIcons
 
 env_path = "/home/darth-tedious/.sovereign-ai/ComfyUI/model_utils/environment.json"
 
@@ -21,7 +22,8 @@ class EnvironmentConfig:
             '--s',
             '--scan-active',
             '--scan-vault',
-            '--scan-workflows']
+            '--scan-workflow',
+            '--list-workflows']
         
         if show_banner:
             Banner()

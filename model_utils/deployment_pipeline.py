@@ -2,11 +2,8 @@ import os
 import sys
 import shutil
 
-from model_utils.model_fetcher import ModelFetcher
-from model_utils.load_model import LoadModel
-from model_utils.vault_manager import VaultManager
-from model_utils.workflow import WorkflowParser
-
+from .model_fetcher import ModelFetcher
+from .vault_manager import VaultManager
 
 class DeploymentPipeline:
 

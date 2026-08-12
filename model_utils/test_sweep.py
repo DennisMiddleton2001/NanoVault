@@ -1,6 +1,6 @@
 import os
 import math
-from load_model import LoadModel
+from .load_model import LoadModel
 
 # Lambda function to calculate the log scale unit
 human_size = lambda s: f"{s / (1024 ** (i := int(math.log(s, 1024) if s > 0 else 0))):.2f} {['B','KB','MB','GB','TB'][i]}"

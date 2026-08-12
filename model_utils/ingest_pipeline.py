@@ -1,7 +1,5 @@
 import os
-import sys
-from model_utils.vault_manager import VaultManager
-from model_utils.load_model import LoadModel
+from .vault_manager import VaultManager
 
 class IngestPipeline:
 

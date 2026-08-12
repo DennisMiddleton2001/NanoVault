@@ -1,5 +1,5 @@
 import os
-from model_utils.vault_manager import VaultManager
+from .vault_manager import VaultManager
 
 class TrimPipeline:
     def __init__(self, env = None, model_list = None):

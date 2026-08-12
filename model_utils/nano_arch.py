@@ -8,14 +8,14 @@ comfyui_root = os.path.abspath(os.path.join(current_dir, ".."))
 if comfyui_root not in sys.path:
     sys.path.insert(0, comfyui_root)
 
-from model_utils.env_config import EnvironmentConfig
-from model_utils.ingest_pipeline import IngestPipeline
-from model_utils.deployment_pipeline import DeploymentPipeline
-from model_utils.purge_pipeline import PurgePipeline
-from model_utils.trim_pipeline import TrimPipeline
-from model_utils.test_sweep import AnalyzeModelsFolder
-from model_utils.load_model import LoadModel
-from model_utils.workflow import WorkflowParser
+from .env_config import EnvironmentConfig
+from .ingest_pipeline import IngestPipeline
+from .deployment_pipeline import DeploymentPipeline
+from .purge_pipeline import PurgePipeline
+from .trim_pipeline import TrimPipeline
+from .test_sweep import AnalyzeModelsFolder
+from .load_model import LoadModel
+from .workflow import WorkflowParser
 
 # endregion
 
@@ -25,6 +25,7 @@ class SovereignManager:
         self.env = EnvironmentConfig()
 
     def execute(self, args_list):
+        print(args_list)
         self.target_path = None
         self.command = args_list[0].lower()
         argc = len(args_list)
@@ -64,35 +65,22 @@ class SovereignManager:
         elif self.command in ['--model']:
             print(f"{self.env.ico.get("INFO",__class__)} Analyzing '{clean_path}'")
             reply = LoadModel(self.env, clean_path, debug=True).analyze()
-        elif self.command in ['--scan-workflows']:
-            reply = WorkflowParser(self.env).scan_workflow_path(clean_path)
+        elif self.command in ['--scan-workflow']:
+            reply = WorkflowParser(self.env).get_required_models(args_list[1])
+        elif self.command in ['--list-workflows']:
+            reply = WorkflowParser(self.env).scan_workflow_path(args_list[1])
         else:
             print(f"{self.env.ico.get("ERR",__class__)} Unrecognized command line '{self.command}'")
-        print()
-
-'''
-
-UI defaults to the ComfyUI/user/default/workflows folder, but is selectable with a 
-folder picker or copy/paste.  Once a folder is selected, the available workflows 
-(workflow_name) are shown in a list view (in the main pane).
-
-Each list item has four buttons "add", "trim", "evict", and "storage". The storage option
-populates another colum in the view to show how much active space is occupied for that
-specific Workflow.
-
-is the hidden fq workflow path in the list.
+            reply = None
+        print(reply)
+        return reply
 
 '''
 workflow_path = '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/'
 workflow_name = 'Remove Background (BiRefNet).json'
 fq_path = os.path.join(workflow_path, workflow_name)
 
-'''
-command_id depends on the selected workflow and the button pressed
-by the user.  Buttons for global operations should be in the header 
-outside the list view.
-'''
-command_id=0
+command_id=8
 
 commands = [
     ['--a', fq_path],
@@ -102,8 +90,11 @@ commands = [
     ['--s', fq_path],
     ['--scan-active'],
     ['--scan-vault'],
-    ['--scan-workflows', workflow_path]
+    ['--scan-workflow', workflow_name],
+    ['--list-workflows', workflow_path]
     ]
 
 retval = SovereignManager().execute(commands[command_id])
+print(retval)
 
+'''
