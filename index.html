@@ -181,20 +181,25 @@
                     if (container) container.scrollTop = container.scrollHeight;
                 };
 
-                const loadConfiguration = () => {
-                    try {
-                        const data = window.SANCTUARY_ENV;
-                        if (data && Object.keys(data).length > 0) {
-                            persistInputString.value = JSON.stringify(data, null, 4);
-                            isFirstRun.value = false;
-                            addToast("Sanctuary Online", "Environment loaded from metal.");
-                            logStream.value.push({ type: 'success', text: '[INIT] environment.json loaded successfully.' });
-                        } else {
-                            showConfigModal.value = true;
-                        }
-                    } catch (e) {
-                        showConfigModal.value = true;
-                    }
+                const formatBytes = (bytes) => {
+                    if (!bytes || bytes === 0) return '0 B';
+                    const k = 1024;
+                    const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+                    const i = Math.floor(Math.log(bytes) / Math.log(k));
+                    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+                };
+
+                const computeGlobalStorage = () => {
+                    let totalActive = 0;
+                    let totalVault = 0;
+
+                    workflows.value.forEach(wf => {
+                        totalActive += wf.rawActiveSize || 0;
+                        totalVault += wf.rawVaultSize || 0;
+                    });
+
+                    activeSize.value = formatBytes(totalActive);
+                    vaultSize.value = formatBytes(totalVault);
                 };
 
                 const loadWorkflows = async () => {
@@ -214,14 +219,23 @@
                         if (data.status === 'SUCCESS') {
                             const rawList = Array.isArray(data.retval) ? data.retval : [];
                             
-                            workflows.value = rawList.map(wf => ({
-                                name: wf.name,
-                                fq_path: wf.fq_path,
-                                rawSize: wf.size,
-                                displaySize: wf.size !== null && wf.size !== undefined ? `${wf.size} bytes` : null,
-                                models: wf.models || [],
-                                modelCount: (wf.models || []).length
-                            })); 
+                            workflows.value = rawList.map(wf => {
+                                const active = wf.active_size || 0;
+                                const vault = wf.vault_size || 0;
+                                const combinedSize = active + vault;
+
+                                return {
+                                    name: wf.name,
+                                    fq_path: wf.fq_path,
+                                    rawActiveSize: active,
+                                    rawVaultSize: vault,
+                                    displaySize: combinedSize > 0 ? `Active: ${formatBytes(active)} | Vault: ${formatBytes(vault)}` : '0 B',
+                                    models: wf.models || [],
+                                    modelCount: (wf.models || []).length
+                                };
+                            }); 
+
+                            computeGlobalStorage();
                             
                             lastResult.value = `Successfully loaded ${workflows.value.length} workflows.`;
                             logStream.value.push({ type: 'success', text: `[SUCCESS] Sweep complete. Found ${workflows.value.length} items.` });
@@ -240,7 +254,7 @@
                 };
 
                 const runCommand = async (flag, wf) => {
-                    logStream.value.push({ type: 'info', text: `> Executing ${flag} on ${wf.name}` });
+                    logStream.value.push({ type: 'info', text: `> Executing ${flag} on target: ${wf.name}` });
                     scrollToBottom();
 
                     try {
@@ -250,11 +264,23 @@
                             body: JSON.stringify({ command: [flag, wf.fq_path] })
                         });
                         const data = await response.json();
-                        lastResult.value = `retval: ${JSON.stringify(data.retval)}`;
-                        logStream.value.push({ type: 'success', text: `[SUCCESS] Action ${flag} completed for ${wf.name}` });
-                        addToast("Command Executed", `${flag} targeted on ${wf.name}`);
+
+                        if (data.status === 'SUCCESS') {
+                            lastResult.value = `retval: ${JSON.stringify(data.retval)}`;
+                            logStream.value.push({ type: 'success', text: `[SUCCESS] Action ${flag} completed for ${wf.name}` });
+                            addToast("Command Executed", `Successfully ran ${flag} on ${wf.name}`);
+                            
+                            await loadWorkflows();
+                            await executeGlobal('scan-active');
+                            await executeGlobal('scan-vault');
+                        } else {
+                            lastResult.value = `ERROR: ${data.message}`;
+                            logStream.value.push({ type: 'error', text: `[ERROR] Action failed: ${data.message}` });
+                            addToast("Execution Error", data.message, 5000);
+                        }
                     } catch (err) {
-                        logStream.value.push({ type: 'error', text: `[ERROR] Execution failed: ${err.message}` });
+                        logStream.value.push({ type: 'error', text: `[FATAL] Command dispatch failed: ${err.message}` });
+                        addToast("Connection Error", "Failed to communicate with backend.", 5000);
                     }
                     scrollToBottom();
                 };
@@ -271,8 +297,8 @@
                         });
                         const data = await response.json();
                         lastResult.value = `retval: ${JSON.stringify(data.retval)}`;
-                        if (flag === 'scan-active') activeSize.value = `${data.retval} B`;
-                        if (flag === 'scan-vault') vaultSize.value = `${data.retval} B`;
+                        if (flag === 'scan-active') activeSize.value = formatBytes(data.retval);
+                        if (flag === 'scan-vault') vaultSize.value = formatBytes(data.retval);
                         logStream.value.push({ type: 'success', text: `[SUCCESS] Global --${flag} completed.` });
                         addToast("Global Sweep", `Successfully executed --${flag}`);
                     } catch (err) {
@@ -280,8 +306,6 @@
                     }
                     scrollToBottom();
                 };
-
-                const openSettings = () => { showConfigModal.value = true; };
 
                 const saveConfiguration = async () => {
                     try {
@@ -306,7 +330,6 @@
                 };
 
                 onMounted(() => {
-                    loadConfiguration();
                     loadWorkflows();
                 });
 
@@ -321,7 +344,7 @@
                     showConfigModal,
                     isFirstRun,
                     persistInputString,
-                    openSettings,
+                    openSettings: () => { showConfigModal.value = true; },
                     saveConfiguration,
                     loadWorkflows,
                     runCommand,
