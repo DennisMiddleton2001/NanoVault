@@ -67,7 +67,7 @@ class SovereignManager:
             reply = WorkflowParser(self.env).get_required_models(args_list[1])
         elif self.command in ['--list-workflows']:
             reply = WorkflowParser(self.env).scan_workflow_path(args_list[1])
-        elif self.command in ['--query-metal-storage']:
+        elif self.command in ['--query-metal-storage','--scan-all']:
             vault_info  = AnalyzeModelsFolder(self.env).run(True)
             active_info = AnalyzeModelsFolder(self.env).run(False)
             reply = {"active_usage" : active_info["active_usage"],

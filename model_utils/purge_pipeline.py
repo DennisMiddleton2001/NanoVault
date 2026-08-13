@@ -8,6 +8,9 @@ class PurgePipeline:
         self.model_list = model_list
         self.vault = VaultManager(self.env)
 
+    def immune_to_purge(self, name):
+        return True if name in self.env.immutable else False
+
     # Runs the purge pipeline for a list of target models.
     def run(self):
         response = {
@@ -16,6 +19,7 @@ class PurgePipeline:
             "message"    : "Purge in progress.",
             "total"      : len(self.model_list),
             "removed"    : 0,
+            "excluded"   : 0,
             "failed"     : 0
         }
 
@@ -34,6 +38,12 @@ class PurgePipeline:
                 print(f"{self.env.ico.get("DONE",__class__)} Purged from active.")
             else:
                 print(f"{self.env.ico.get("DONE",__class__)} Not found in active.")
+
+            immune = self.immune_to_purge(name)
+            if immune:
+                print(f"{self.env.ico.get("LOCK",__class__)} File immune to purge.")
+                response["excluded"] += 1
+                continue
 
             if not self.vault.free_vault_file(name):
                 print(f"{self.env.ico.get("ERR",__class__)} File was deleted out of band.")

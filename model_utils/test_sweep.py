@@ -49,6 +49,7 @@ class AnalyzeModelsFolder:
         group = "vault" if vault else "active"
         invalid_tensors = list()
         total_size = 0
+        invalid_count = 0
 
         for root, _, files in os.walk(self.target_dir):
             for file in files:
@@ -65,12 +66,18 @@ class AnalyzeModelsFolder:
 
                     if not entry['valid']:
                         invalid_tensors.append(file)
+                        invalid_count += 1
 
                     self.manifest.append(entry)
         
         status = {f"{group}_usage" : total_size, 
-                  group : self.manifest, 
-                  "invalid" : invalid_tensors}
+            group : self.manifest, 
+            "errors" : {
+                "invalid_count"   :invalid_count,
+                "invalid_tensors" :invalid_tensors
+                }
+        }
+
 
         return status
 

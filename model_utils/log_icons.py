@@ -11,7 +11,10 @@ class LogIcons:
             "COMM" : "📡 ",  # Communication
             "SCAN" : "🕵 ",  # Scanning a resource
             "BOX"  : "📦 ",   # Packaging reference
-            "KEY"  : "🔑 "
+            "KEY"  : "🔑 ",
+            "LOCK" : "🔒 ",
+            "LIGHT": "🚨 ",
+            "FOLD" : "📂 "
         }
 
     def get(self, id, class_name=None, show_class=False):

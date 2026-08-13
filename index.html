@@ -65,8 +65,8 @@
                 <div class="h-5 w-px bg-sanctuary-border"></div>
                 <div class="flex items-center space-x-2 text-xs">
                     <span class="text-slate-400 w-24">WorkflowPath:</span>
-                    <input type="text" v-model="workflowPath" class="bg-sanctuary-bg border border-sanctuary-border rounded px-2 py-0.5 font-mono text-cyan-200 focus:outline-none focus:border-cyan-500 w-96 transition">
-                    <button @click="loadWorkflowsWithToast" class="px-3 py-0.5 bg-cyan-600 hover:bg-cyan-500 text-black font-semibold rounded transition text-xs shadow-[0_0_10px_rgba(6,182,212,0.3)]">Load</button>
+                    <input type="text" v-model="workflowPath" @keyup.enter="loadWorkflows" class="bg-sanctuary-bg border border-sanctuary-border rounded px-2 py-0.5 font-mono text-cyan-200 focus:outline-none focus:border-cyan-500 w-96 transition">
+                    <button @click="loadWorkflows" class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 text-black font-semibold rounded transition shadow-[0_0_15px_rgba(6,182,212,0.3)]">Load Path</button>
                 </div>
             </div>
             
@@ -177,7 +177,10 @@
 
         createApp({
             setup() {
-                const workflowPath = ref('/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/');
+                // Load saved path from local storage if it exists, otherwise use default
+const savedPath = localStorage.getItem('sanctuary_workflow_path');
+                const workflowPath = ref(savedPath || '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/');
+                localStorage.setItem('sanctuary_workflow_path', workflowPath.value);
                 const workflows = ref([]);
                 const activeSize = ref('0 B');
                 const vaultSize = ref('0 B');
@@ -282,57 +285,59 @@
                     }
                 };
 
-                const loadWorkflows = async () => {
-                    logStream.value.push({ type: 'info', text: `> Sweeping path: ${workflowPath.value}` });
-                    scrollToBottom();
+            const loadWorkflows = async () => {
+                localStorage.setItem('sanctuary_workflow_path', workflowPath.value);
+                logStream.value.push({ type: 'info', text: `> Sweeping path: ${workflowPath.value}` });
+
+                scrollToBottom();
+                
+                try {
+                    const response = await fetch('/api/execute', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ command: ['--list-workflows', workflowPath.value] })
+                    });
                     
-                    try {
-                        const response = await fetch('/api/execute', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ command: ['--list-workflows', workflowPath.value] })
-                        });
+                    const data = await response.json();
+
+                    if (data.status === 'SUCCESS') {
+                        const rawList = Array.isArray(data.retval) ? data.retval : [];
                         
-                        const data = await response.json();
+                        workflows.value = rawList.map(wf => {
+                            const active = wf.active_size || 0;
+                            const vault = wf.vault_size || 0;
+                            const combinedSize = active + vault;
 
-                        if (data.status === 'SUCCESS') {
-                            const rawList = Array.isArray(data.retval) ? data.retval : [];
-                            
-                            workflows.value = rawList.map(wf => {
-                                const active = wf.active_size || 0;
-                                const vault = wf.vault_size || 0;
-                                const combinedSize = active + vault;
+                            return {
+                                name: wf.name,
+                                fq_path: wf.fq_path,
+                                rawActiveSize: active,
+                                rawVaultSize: vault,
+                                displaySize: combinedSize > 0 ? `Active: ${formatBytes(active)} | Vault: ${formatBytes(vault)}` : '0 B',
+                                models: wf.models || [],
+                                modelCount: (wf.models || []).length
+                            };
+                        }); 
 
-                                return {
-                                    name: wf.name,
-                                    fq_path: wf.fq_path,
-                                    rawActiveSize: active,
-                                    rawVaultSize: vault,
-                                    displaySize: combinedSize > 0 ? `Active: ${formatBytes(active)} | Vault: ${formatBytes(vault)}` : '0 B',
-                                    models: wf.models || [],
-                                    modelCount: (wf.models || []).length
-                                };
-                            }); 
+                        // Synchronize true global storage from the metal backend
+                        await queryMetalStorage();
 
-                            // Synchronize true global storage from the metal backend
-                            await queryMetalStorage();
-
-                            lastResult.value = `Successfully loaded ${workflows.value.length} workflows from sanctuary path.`;
-                            logStream.value.push({ type: 'success', text: `[SUCCESS] Sweep complete. Found ${workflows.value.length} items.` });
-                            return true;
-                        } else {
-                            lastResult.value = `ERROR: ${data.message}`;
-                            logStream.value.push({ type: 'error', text: `[ERROR] ${data.message}` });
-                            return false;
-                        }
-                    } catch (error) {
-                        lastResult.value = "Gateway Comm Link Failed";
-                        logStream.value.push({ type: 'error', text: `[FATAL] Bridge disconnected: ${error.message}` });
+                        lastResult.value = `Successfully loaded ${workflows.value.length} workflows from sanctuary path.`;
+                        logStream.value.push({ type: 'success', text: `[SUCCESS] Sweep complete. Found ${workflows.value.length} items.` });
+                        return true;
+                    } else {
+                        lastResult.value = `ERROR: ${data.message}`;
+                        logStream.value.push({ type: 'error', text: `[ERROR] ${data.message}` });
                         return false;
-                    } finally {
-                        scrollToBottom();
                     }
-                };
+                } catch (error) {
+                    lastResult.value = "Gateway Comm Link Failed";
+                    logStream.value.push({ type: 'error', text: `[FATAL] Bridge disconnected: ${error.message}` });
+                    return false;
+                } finally {
+                    scrollToBottom();
+                }
+            };
 
 
                 const loadWorkflowsWithToast = async () => {
@@ -348,7 +353,23 @@
                     let actionName = "Operation";
                     if (flag === '--a') actionName = "Add Workflow";
                     if (flag === '--t') actionName = "Trim Workflow";
-                    if (flag === '--e') actionName = "Evict Workflow";
+                    
+
+                    // Intercept destructive actions with a native browser confirmation prompt
+                    if (flag === '--e') {
+                        const confirmed = window.confirm(`WARNING: Are you sure you want to evict "${wf.name}"? This will purge associated models from the vault and active paths.`);
+                        if (!confirmed) {
+                            addToast("Eviction Aborted", "Operation cancelled by user.");
+                            return; // Stop execution here
+                        }
+                        else
+                        {
+                            actionName = "Evict Workflow";
+                        }
+                    }
+
+
+
 
                     addToast(`Starting ${actionName}`, `Target: ${wf.name}`);
                     logStream.value.push({ type: 'info', text: `> Executing ${flag} on target: ${wf.name}` });

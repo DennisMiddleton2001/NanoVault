@@ -6,7 +6,7 @@ from pathlib import Path
 from .banner_gen import Banner
 from .log_icons import LogIcons
 
-env_path = "/home/darth-tedious/.sovereign-ai/ComfyUI/model_utils/environment.json"
+env_path = os.path.join(".", "environment.json")
 
 class EnvironmentConfig:
     """Manages system paths, environment states, and API credentials."""
@@ -24,7 +24,8 @@ class EnvironmentConfig:
             '--scan-vault',
             '--scan-workflow',
             '--list-workflows',
-            '--query-metal-storage']
+            '--query-metal-storage',
+            '--scan-all']
         
         if show_banner:
             Banner()
@@ -60,23 +61,22 @@ class EnvironmentConfig:
         print(f"CONFIG : '{self.env_path}'\n")
 
         if os.path.exists(self.active_root):
-            print(f"{self.ico.get('DONE')} Models    : {self.active_root}")
+            print(f"{self.ico.get('FOLD')} Models    : {self.active_root}")
         else:
             print(f"{self.ico.get('ERR')} Models    : {self.active_root} - does not exist.")
             config_error = True
 
         if os.path.exists(self.vault_dir):
-            print(f"{self.ico.get('DONE')} NanoVault : {self.vault_dir}")
+            print(f"{self.ico.get('FOLD')} NanoVault : {self.vault_dir}")
         else:
             print(f"{self.ico.get('ERR')} NanoVault : {self.vault_dir} - does not exist.")
             config_error = True
 
         if os.path.exists(self.staging_cache):
-            print(f"{self.ico.get('DONE')} Staging   : {self.staging_cache}")
+            print(f"{self.ico.get('FOLD')} Staging   : {self.staging_cache}")
         else:
             print(f"{self.ico.get('ERR')} Staging   : {self.staging_cache} - does not exist")
             config_error = True
-
 
         hash_type = self.sidecar_ext
 
@@ -84,7 +84,18 @@ class EnvironmentConfig:
         print(f"{self.ico.get('KEY')} HASH_TYPE      : {hash_type}")                        
         print(f"{self.ico.get('KEY')} HF_TOKEN       : {self.hf_token[:10]}...")
         print(f"{self.ico.get('KEY')} CIVITAI_TOKEN  : {self.civitai_token[:10]}...")
-        print(self.ico.sep(0))        
+
+        print()
+        persist = env.get('exclude_from_purge')
+        self.immutable = persist
+
+        if len(persist):
+            print(f"{self.ico.get('LIGHT')} Locked From Purge")
+            print(self.ico.sep(3, 40))
+            for m in persist:
+                print(f"{self.ico.get('LOCK')}    {m}")
+
+        print(self.ico.sep(0))
         if config_error:
             print(f"{self.ico.get('ERR')} Unable to continue - verify paths.")
             
