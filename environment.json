@@ -24,6 +24,7 @@
         "wan2.2_fun_camera_low_noise_14B_fp8_scaled.safetensors",
         "krea2_turbo_fp8_scaled.safetensors",
         "gemma-3-12b-it-ablit-norms-biproj-fp8mixed.safetensors",
-        "z_image_turbo_bf16.safetensors"
+        "z_image_turbo_bf16.safetensors",
+        "gemma_3_12B_it_fp4_mixed.safetensors"
         ]
 }
