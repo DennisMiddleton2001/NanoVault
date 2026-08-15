@@ -1,7 +1,7 @@
 {
     "paths": {
         "active_root": "/home/darth-tedious/.sovereign-ai/ComfyUI/models/",
-        "staging_cache": "/home/darth-tedious/.cache/nano-arch/",
+        "staging_cache": "/run/media/darth-tedious/5eb65f8c-6e86-46ab-beaa-c2bec31b620c/download_cache",
         "vault_dir": "/run/media/darth-tedious/5eb65f8c-6e86-46ab-beaa-c2bec31b620c/nano-vault/"
     },
     "fast_hash": true,
@@ -10,6 +10,9 @@
         "civitai_token": "ac62720a98e63885c6c406328bd41991"
     },
     "exclude_from_purge": [
+        "gemma4_e2b_it_bf16.safetensors",
+        "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+        "ltx-2.5-video-vae-bf16.safetensors",
         "ltx-2.3-22b-dev.safetensors",
         "qwen_image_edit_2511_bf16.safetensors",
         "mistral_3_small_flux2_bf16.safetensors",

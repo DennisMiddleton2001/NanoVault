@@ -8,8 +8,9 @@
             "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",
-            "args": ["--e", "/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/Remove Background (BiRefNet).json"],
+            "args": ["--a", "../ComfyUI/user/default/workflows/video_ltx2_5_i2v.json"],
             "program": "nv.py",
+            //"program": "main.py",
             "console": "integratedTerminal"
         }
     ]

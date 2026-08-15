@@ -27,31 +27,31 @@ class PurgePipeline:
         print(f"{self.env.ico.get("SRCH",__class__)} Permanently removing {len(target_models)} models.")
 
         for model in target_models:
-            name        = model['name']
-            subfolder   = model['directory']
+            model_name        = model['name']
+            model_subfolder   = model['directory']
 
-            active_path = self.vault.find_valid_active_file(subfolder, name)
+            active_fq_path = self.vault.get_active_fq_path(model_subfolder, model_name)
             
             # Step 1: Hunt down and terminate the Active file
-            if active_path:
-                os.remove(active_path)
+            if os.path.exists(active_fq_path):
+                os.remove(active_fq_path)
                 print(f"{self.env.ico.get("DONE",__class__)} Purged from active.")
             else:
                 print(f"{self.env.ico.get("DONE",__class__)} Not found in active.")
 
-            immune = self.immune_to_purge(name)
+            immune = self.immune_to_purge(model_name)
             if immune:
-                print(f"{self.env.ico.get("LOCK",__class__)} File immune to purge.")
+                print(f"{self.env.ico.get("LOCK",__class__)} File locked from purge.")
                 response["excluded"] += 1
                 continue
 
-            if not self.vault.free_vault_file(name):
+            if not self.vault.free_vault_file(model_name):
                 print(f"{self.env.ico.get("ERR",__class__)} File was deleted out of band.")
                 response["failed"] += 1
                 print(self.env.ico.sep(2))
                 continue
 
-            print(f"{self.env.ico.get("DONE",__class__)} Purged NanoVault metadata.")
+            print(f"{self.env.ico.get("DONE",__class__)} Purge complete.")
             print(self.env.ico.sep(2))
 
         print(self.env.ico.sep(1))

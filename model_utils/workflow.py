@@ -10,7 +10,7 @@ class WorkflowParser:
         self.workflow_path = workflow_path
         self.valid_exts = ('.safetensors', '.ckpt', '.pt', '.pth', '.bin', '.gguf', '.onnx', '.sft')
         self.env = env
-        self.vault_manager = VaultManager(self.env)
+        self.vault = VaultManager(self.env)
 
         # The universal router list
         self.known_folders = [
@@ -42,18 +42,22 @@ class WorkflowParser:
         return ""
 
     def get_required_models(self, workflow_path=None):
+        models = self.get_required_models_ex(workflow_path)
+        return models
+    
+    def get_required_models_ex(self, workflow_path=None):
         # Resolve the active path to use for this call
         target_path = workflow_path or self.workflow_path
         
         if not target_path:
-            print(f"ERR: No workflow path specified.")
+            print(f"{self.env.ico('ERR', __class__)}  No workflow path specified.")
             return []
 
         try:
             with open(target_path, 'r', encoding='utf-8') as f:
                 try:
                     workflow = json.load(f)
-                except Exception as e:
+                except KeyError as e:
                     print(f"{self.env.ico.get('ERR',__class__)} {target_path} - {e}.")
                     return []
         except Exception as e:
@@ -176,13 +180,13 @@ class WorkflowParser:
                             result['vault_size']  += m['vault_size']
                         except KeyError:
                             pass                        
-                    print(result)
                     scan_results.append(result)
-        self.print_workflow_folder_info(scan_results)
+
+        #self.print_workflow_folder_info(scan_results)
         return scan_results
 
     def print_workflow_folder_info(self, scan_results):
-
+        # For debugging purposes
         for workflow in scan_results:
             name = workflow.get('name')
             print(f"\n")
@@ -196,17 +200,17 @@ class WorkflowParser:
                 print(f'   {name}')
             print(self.env.ico.sep(3,40))
 
-    def get_active_size(self, directory, name):
-        file_path = self.vault_manager.find_valid_active_file(directory, name)
-        if not file_path:
+    def get_active_size(self, model_folder, model_name):
+        valid_active_fq_path = self.vault.valid_active_fq_path(model_folder, model_name)
+        if not valid_active_fq_path:
             return 0
         else:
-            return os.path.getsize(file_path)
+            return os.path.getsize(valid_active_fq_path)
 
-    def get_vault_size(self, name):
-        file_path = self.vault_manager.find_valid_vault_file(name)
-        if not file_path:
+    def get_vault_size(self, model_name):
+        valid_vault_fq_path = self.vault.get_valid_vault_fq_path(model_name)
+        if not valid_vault_fq_path:
             return 0
         else:
-            return os.path.getsize(file_path)
+            return os.path.getsize(valid_vault_fq_path)
         

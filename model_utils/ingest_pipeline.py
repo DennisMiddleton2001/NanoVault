@@ -31,10 +31,10 @@ class IngestPipeline:
             print(f"{self.env.ico.get("ACT",__class__)} '{name}' Evaluating model")
 
             # Step 1: Ensure the file actually exists on the NVMe
-            active_file_path = self.vault.find_valid_active_file(subfolder, name)
-            if not active_file_path:
+            active_file_path = self.vault.get_active_fq_path(subfolder, name)
+            if not os.path.exists(active_file_path):
                 print(f"{self.env.ico.get("ALRT",__class__)} Not found on active. Cannot ingest.")
-                if self.vault.find_valid_vault_file(name):
+                if self.vault.get_valid_vault_fq_path(name):
                     print(f"{self.env.ico.get("BOX",__class__)} Existing copy secured in NanoVault.")
                     response["secured"] += 1
                     print(self.env.ico.sep(2))
@@ -45,7 +45,7 @@ class IngestPipeline:
                 continue
 
             # Step 2: Check if it's ALREADY in the NanoVault vault
-            vault_path = self.vault.find_valid_vault_file(name)
+            vault_path = self.vault.get_valid_vault_fq_path(name)
             if vault_path:
                 print(f"{self.env.ico.get("BOX",__class__)} Secured in NanoVault.")
                 response['secured']
@@ -58,7 +58,6 @@ class IngestPipeline:
                 print(self.env.ico.sep(2))
                 continue
             response['ingested'] += 1
-            #print(f"{self.env.ico.get('BOX',__class__)} File secured in NanoVault.")
             print(self.env.ico.sep(2))
         print(self.env.ico.sep(1))
 
@@ -66,6 +65,7 @@ class IngestPipeline:
             response["message"] = "Ingest completed with errors."
         else:
             response["message"] = "Ingest complete."
+
         return response
 
 

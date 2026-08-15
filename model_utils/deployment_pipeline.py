@@ -37,8 +37,8 @@ class DeploymentPipeline:
 
             # Check if model exists in active path.
             print(f"{self.env.ico.get("ACT",__class__)} Evaluating dependency '{subfolder}' '{name}'.")
-            active_path = self.vault.find_valid_active_file(subfolder, name)
-            if active_path:
+            active_fq_path = self.vault.get_active_fq_path(subfolder, name)
+            if os.path.exists(active_fq_path):
                 print(f"{self.env.ico.get("DONE",__class__)} Exists in active configuration.")
                 print(self.env.ico.sep(2))
                 response['active'] += 1
@@ -46,7 +46,7 @@ class DeploymentPipeline:
 
             # Check if model exists in NanoVault
             print(f"{self.env.ico.get("ACT",__class__)} Checking NanoVault for '{name}'.")
-            vault_path = self.vault.find_valid_vault_file(name)
+            vault_path = self.vault.get_valid_vault_fq_path(name)
             if vault_path:
                 print(f"{self.env.ico.get("ACT",__class__)} Located in NanoVault.")
                 if self.vault.deploy_from_vault(subfolder, name):
@@ -57,11 +57,17 @@ class DeploymentPipeline:
                 else:
                     print(f"{self.env.ico.get("ACT",__class__)} Error deploying from NanoVault.")
 
-            # File doesn't exist.  Fetch from URL.
-            print(f"{self.env.ico.get('WRN',__class__)} Local file not found.")
-            print(f"{self.env.ico.get('ACT',__class__)} Downloading to cache.")
+            # File doesn't exist in vault.  Fetch from URL.
+            print(f"{self.env.ico.get('WRN',__class__)} Vault file not found.")
+            
+            cached_path = os.path.join(self.env.staging_cache, name)
+            if os.path.exists(cached_path) and self.vault.validate_file_structure(cached_path):
+                print(f"{self.env.ico.get("COMM",__class__)} Downloaded file found in cache.")
+            else:
+                cached_path = None
+                print(f"{self.env.ico.get('ACT',__class__)} Downloading to cache.")
+                cached_path = self.fetcher.download_to_cache(url, name, subfolder)
 
-            cached_path = self.fetcher.download_to_cache(url, name, subfolder)
             if cached_path:
                 if not self.vault.ingest_to_vault(cached_path, name, delete_source=True):
                     print(f"{self.env.ico.get("ERR",__class__)} Ingestion failed.")

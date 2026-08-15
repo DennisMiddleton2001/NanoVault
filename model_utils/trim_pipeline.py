@@ -22,34 +22,37 @@ class TrimPipeline:
         print(self.env.ico.sep(1))
         for model in self.model_list:
 
-            name = model['name']
-            subfolder = model['directory']
-            active_path = self.vault.find_valid_active_file(subfolder, name)
-            vault_path = self.vault.find_valid_vault_file(name)
+            model_name = model['name']
+            model_subfolder = model['directory']
+            # This has the side effect of writing the model_subfolder to the NanoVault metadata.
+            active_fq_path = self.vault.get_active_fq_path(model_subfolder, model_name)
+            valid_vault_fq_path = self.vault.get_valid_vault_fq_path(model_name)
 
-            if not active_path:
-                print(f"{self.env.ico.get('DONE',__class__)} '{name}' Not on active NVMe.")
+            if not active_fq_path:
+                print(f"{self.env.ico.get('DONE',__class__)} '{model_name}' Not on active NVMe.")
     
-                if not vault_path:
-                    print(f"{self.env.ico.get('WRN',__class__)} '{name}' Not secured in Nanovault.")
+                if not valid_vault_fq_path:
+                    print(f"{self.env.ico.get('WRN',__class__)} '{model_name}' Not secured in Nanovault.")
                     response['missing'] += 1
                     print(self.env.ico.sep(2))
                     continue
 
-            # Step 2: Check if it's ALREADY in the NanoVault vault
-            if vault_path:
-                print(f"{self.env.ico.get('BOX',__class__)} '{name}' Secured in NanoVault.")
-                if active_path:
-                    os.remove(active_path)
+            # Step 2: Check to see if it's ALREADY in the NanoVault vault
+            if valid_vault_fq_path:
+                print(f"{self.env.ico.get('BOX',__class__)} '{model_name}' Secured in NanoVault.")
+                # Verify path and refresh model_subfolder metadata in vault.
+                valid_active_fq_path = self.vault.valid_active_fq_path(model_subfolder, model_name)
+                if valid_active_fq_path:
+                    os.remove(valid_active_fq_path)
                     response['trimmed'] += 1
                     print(f"{self.env.ico.get('DONE',__class__)} Removed from active NVMe.")
                 print(self.env.ico.sep(2))
                 continue
 
             # Step 3: Ingest the model file into the NanoVault
-            print(f"{self.env.ico.get('ALRT',__class__)} '{name}' Not found in NanoVault.")
+            print(f"{self.env.ico.get('ALRT',__class__)} '{model_name}' Not found in NanoVault.")
             print(f"{self.env.ico.get('INFO',__class__)} Securing in NanoVault.")
-            if not self.vault.ingest_to_vault(active_path, name, delete_source=True):
+            if not self.vault.ingest_to_vault(active_fq_path, model_name, delete_source=True):
                 print(f"{self.env.ico.get('ERR',__class__)} Unable to secure file to NanoVault.")
                 response["failed"] += 1
                 continue

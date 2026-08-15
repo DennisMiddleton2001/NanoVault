@@ -65,5 +65,10 @@ async def execute_command(request: Request):
         }
 
 if __name__ == "__main__":
-    print("[SYSTEM INIT] Sovereign Gateway online. Binding to 0.0.0.0:8000")
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    port = 8000
+    while True:
+        try:
+            print(f"[SYSTEM INIT] Sovereign Gateway online. Binding to 0.0.0.0:{port}")
+            uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+        except:
+                port += 1
