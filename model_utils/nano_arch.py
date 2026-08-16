@@ -11,6 +11,7 @@ if comfyui_root not in sys.path:
 from .env_config import EnvironmentConfig
 from .ingest_pipeline import IngestPipeline
 from .deployment_pipeline import DeploymentPipeline
+from .deployment_pipeline_spot import SpotDeploymentPipeline
 from .purge_pipeline import PurgePipeline
 from .trim_pipeline import TrimPipeline
 from .test_sweep import AnalyzeModelsFolder
@@ -45,8 +46,11 @@ class SovereignManager:
                 return False
 
         if self.command in ['--a']:
-            print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
-            reply = DeploymentPipeline(self.env, model_list).run()
+                    print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
+                    reply = DeploymentPipeline(self.env, model_list).run()
+        if self.command in ['--as']:
+                    print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
+                    reply = SpotDeploymentPipeline(self.env, model_list).run()
         elif self.command in ['--t']:
             print(f"{self.env.ico.get('ACT',__class__)} TRIM: '{clean_path}'")
             reply = TrimPipeline(self.env, model_list).run()

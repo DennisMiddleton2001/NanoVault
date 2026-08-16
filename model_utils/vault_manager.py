@@ -32,6 +32,9 @@ class VaultManager:
     def get_active_fq_path(self, model_subfolder, model_name):
          return self.clean(os.path.join(self.env.active_root, model_subfolder, model_name))
 
+    def get_staging_fq_path(self, model_name):
+         return self.clean(os.path.join(self.env.staging_cache, model_name))
+
     def get_fq_sidecar_path(self, vault_fq_path):
         return  self.clean(f"{vault_fq_path}{self.env.sidecar_ext}")
 
@@ -80,11 +83,12 @@ class VaultManager:
             return self.calculate_xxh_hash(model_fq_path) if self.env.fast_hash else self.calculate_sha_hash(model_fq_path)
 
     def validate_file_structure(self, source_fq_path):
+
         if not os.path.exists(source_fq_path):
             return False
         
-        m = LoadModel(self.env, source_fq_path)
-        if not m.analyze():
+        model_entry = LoadModel(self.env, source_fq_path).analyze()
+        if not model_entry['valid']:
             return False
 
         return True
@@ -121,7 +125,7 @@ class VaultManager:
             return None
         
         return vault_fq_path
-        
+
     def free_vault_file(self, model_name):
         vault_fq_path = self.get_fq_vault_path(model_name)
         sidecar_fq_path = self.get_fq_sidecar_path(vault_fq_path)
@@ -244,3 +248,44 @@ class VaultManager:
             print(f"{self.env.ico.get('DONE',__class__)} Hash confirmed.")
             return True
 
+    def deploy_from_cache(self, model_subfolder, model_name):
+
+                active_path = self.get_active_fq_path(model_subfolder, model_name)
+
+                staging_fq_path = self.get_staging_fq_path(model_name)
+                if not os.path.exists(staging_fq_path):
+                    print(f"{self.env.ico.get('ERR',__class__)} File not found in cache.")
+                    return False
+
+                print(f"{self.env.ico.get('BOX',__class__)} Spot deployment.")
+
+                if not self.validate_file_structure(staging_fq_path):
+                    print(f"{self.env.ico.get('ERR',__class__)} File corrupted during download. Deleting.")
+                    try:
+                        os.remove(staging_fq_path)
+                    except:
+                        pass
+                    return False
+                print(f"{self.env.ico.get('ACT',__class__)} File structure validated.")
+                
+                print(f"{self.env.ico.get('ACT',__class__)} Calculating staging file hash.")
+                staged_hash = self.calculate_hash(staging_fq_path)
+                print(f"{self.env.ico.get('KEY',__class__)} [{staged_hash}] Staging file hash.")
+
+                print(f"{self.env.ico.get('ACT',__class__)} Moving to active storage.")
+                shutil.move(staging_fq_path, active_path)
+
+                print(f"{self.env.ico.get('ACT',__class__)} Calculating desination file hash.")
+                active_hash = self.calculate_hash(active_path)
+                print(f"{self.env.ico.get('KEY',__class__)} [{staged_hash}] {active_path} hash.")
+                
+                if staged_hash != active_hash:
+                    print(f"{self.env.ico.get('WRN',__class__)} Hash mismatch. Deleting active file.")
+                    try:
+                        os.remove(active_path)
+                    except:
+                        pass
+                    return False
+
+                print(f"{self.env.ico.get('DONE',__class__)} Hash confirmed.")
+                return True

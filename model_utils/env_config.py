@@ -16,6 +16,7 @@ class EnvironmentConfig:
         self.env_path = env_path
         self.valid_commands = [
             '--a',
+            '--as',
             '--t',
             '--i',
             '--e',

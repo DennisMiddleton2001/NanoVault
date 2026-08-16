@@ -11,10 +11,10 @@ class ModelFetcher:
     # Download model to a cache folder defined by 'environement.json'.
     def download_to_cache(self, url, model_name, target_dir):
 
-        staged_file_path = os.path.join(self.env.staging_cache, model_name)
+        download_file_path = os.path.join(self.env.staging_cache, model_name)
         print(f"{ico.get('COMM',__class__)} Starting download.")
                 
-        wget_cmd = ["wget", "-c", "-O", staged_file_path]
+        wget_cmd = ["wget", "-c", "-O", download_file_path]
         match url:
             case "huggingface.co":
                 if len(self.env.hf_token) > 8:
@@ -37,9 +37,9 @@ class ModelFetcher:
             print(f"MODEL    : {model_name}")
             print(f"DIRECTORY: {target_dir}")
             print(f"URL      : {url}")
-            staged_file_path = None
+            download_file_path = None
         print(self.env.ico.sep(3))
         
-        return staged_file_path
+        return download_file_path
 
         

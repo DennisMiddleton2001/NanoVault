@@ -5,7 +5,7 @@ import shutil
 from .model_fetcher import ModelFetcher
 from .vault_manager import VaultManager
 
-class DeploymentPipeline:
+class SpotDeploymentPipeline:
 
     def __init__(self, env = None, model_list = None):
 
@@ -44,10 +44,10 @@ class DeploymentPipeline:
                 response['active'] += 1
                 continue
 
-            # Check if model exists in NanoVault
+            # "Hail Mary" check to see if NanoVault has a copy.
             print(f"{self.env.ico.get("ACT",__class__)} Checking NanoVault for '{model_name}'.")
-            vault_path = self.vault.get_valid_vault_fq_path(model_name)
-            if vault_path:
+            vault_fq_path = self.vault.get_valid_vault_fq_path(model_name)
+            if vault_fq_path:
                 print(f"{self.env.ico.get("ACT",__class__)} Located in NanoVault.")
                 if self.vault.deploy_from_vault(model_subfolder, model_name):
                     print(f"{self.env.ico.get("BOX",__class__)} Deployed from Nanovault.")
@@ -57,33 +57,29 @@ class DeploymentPipeline:
                 else:
                     print(f"{self.env.ico.get("ACT",__class__)} Error deploying from NanoVault.")
 
-            # File doesn't exist in vault.  Fetch from URL.
             print(f"{self.env.ico.get('WRN',__class__)} Vault file not found.")
-            
-            staging_fq_path = self.vault.get_staging_fq_path(model_name)
-            if os.path.exists(staging_fq_path) and self.vault.validate_file_structure(staging_fq_path):
-                print(f"{self.env.ico.get("COMM",__class__)} Downloaded file found in cache.")
-            else:
-                staging_fq_path = None
+            cached_path = self.vault.get_staging_fq_path(model_name)
+            if not os.path.exists(cached_path):
+                cached_path = None
                 print(f"{self.env.ico.get('ACT',__class__)} Downloading to cache.")
-                staging_fq_path = self.fetcher.download_to_cache(url, model_name, model_subfolder)
+                cached_path = self.fetcher.download_to_cache(url, model_name, model_subfolder)
+                if cached_path:
+                    response["downloaded"] += 1
 
-            if staging_fq_path:
-                if not self.vault.ingest_to_vault(staging_fq_path, model_name, delete_source=True):
-                    print(f"{self.env.ico.get("ERR",__class__)} Ingestion failed.")
-                    response['failed'] += 1
-                    continue
+            if not os.path.exists(cached_path):
+                print(f"{self.env.ico.get("ERR",__class__)} Download failed.")
+                response["failed"] += 1
+                continue
 
-                response['downloaded'] += 1
-                print(f"{self.env.ico.get("COMM",__class__)} Ingested from internet download.")
-                print(f"{self.env.ico.get("ACT",__class__)} Starting deployment.")
-                if not self.vault.deploy_from_vault(model_subfolder, model_name):
-                    print(f"{self.env.ico.get("ERR",__class__)} Deployment failed.")
-                    response["failed"] += 1
-                    continue
+            print(f"{self.env.ico.get("DONE",__class__)} Performing spot deployment.")
+            if not self.vault.deploy_from_cache(model_subfolder, model_name):
+                print(f"{self.env.ico.get("ERR",__class__)} Deployment failed.")
+                response['failed'] += 1
+                continue
 
-                response['deployed'] += 1
-                print(f"{self.env.ico.get("DONE",__class__)} Deployment complete.")
+            response['deployed'] += 1
+            print(f"{self.env.ico.get("DONE",__class__)} Spot deployment complete.")
+
             print(self.env.ico.sep(2))
 
         print(self.env.ico.sep(1))
