@@ -17,6 +17,7 @@ from .trim_pipeline import TrimPipeline
 from .test_sweep import AnalyzeModelsFolder
 from .load_model import LoadModel
 from .workflow import WorkflowParser
+from .workflow import WorkflowEnumerator
 
 # endregion
 
@@ -68,9 +69,9 @@ class SovereignManager:
             print(f"{self.env.ico.get("INFO",__class__)} Analyzing '{clean_path}'")
             reply = LoadModel(self.env, clean_path, debug=True).analyze()
         elif self.command in ['--scan-workflow']:
-            reply = WorkflowParser(self.env).get_required_models(args_list[1])
+            reply = WorkflowParser(self.env,args_list[1]).get_required_models()
         elif self.command in ['--list-workflows']:
-            reply = WorkflowParser(self.env).scan_workflow_path(args_list[1])
+            reply = WorkflowEnumerator(self.env,args_list[1]).run()
         elif self.command in ['--query-metal-storage','--scan-all']:
             vault_info  = AnalyzeModelsFolder(self.env).run(True)
             active_info = AnalyzeModelsFolder(self.env).run(False)
