@@ -44,12 +44,13 @@ class SovereignManager:
         if '.json' in clean_path.lower():
             model_list = WorkflowParser(self.env, clean_path).get_required_models()
             if not len(model_list):
+                print(f"{self.env.ico.get('WRN',__class__)} No models found in '{clean_path}'")
                 return False
 
         if self.command in ['--a']:
                     print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
                     reply = DeploymentPipeline(self.env, model_list).run()
-        if self.command in ['--as']:
+        elif self.command in ['--as']:
                     print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
                     reply = SpotDeploymentPipeline(self.env, model_list).run()
         elif self.command in ['--t']:
@@ -77,7 +78,6 @@ class SovereignManager:
             active_info = AnalyzeModelsFolder(self.env).run(False)
             reply = {"active_usage" : active_info["active_usage"],
                      "vault_usage" : vault_info["vault_usage"]}
-
         else:
             print(f"{self.env.ico.get("ERR",__class__)} Unrecognized command line '{self.command}'")
             reply = None

@@ -27,10 +27,10 @@ class PurgePipeline:
         print(f"{self.env.ico.get("SRCH",__class__)} Permanently removing {len(target_models)} models.")
 
         for model in target_models:
-            model_name        = model['name']
-            model_subfolder   = model['directory']
+            model_name        = model['model_name']
+            model_path   = model['model_path']
 
-            active_fq_path = self.vault.get_active_fq_path(model_subfolder, model_name)
+            active_fq_path = self.vault.get_active_fq_path(model_path, model_name)
             
             # Step 1: Hunt down and terminate the Active file
             if os.path.exists(active_fq_path):

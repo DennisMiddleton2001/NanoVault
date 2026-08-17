@@ -22,10 +22,10 @@ class TrimPipeline:
         print(self.env.ico.sep(1))
         for model in self.model_list:
 
-            model_name = model['name']
-            model_subfolder = model['directory']
+            model_name = model['model_name']
+            model_path = model['model_path']
             # This has the side effect of writing the model_subfolder to the NanoVault metadata.
-            active_fq_path = self.vault.get_active_fq_path(model_subfolder, model_name)
+            active_fq_path = self.vault.get_active_fq_path(model_path, model_name)
             valid_vault_fq_path = self.vault.get_valid_vault_fq_path(model_name)
 
             if not active_fq_path:
@@ -41,7 +41,7 @@ class TrimPipeline:
             if valid_vault_fq_path:
                 print(f"{self.env.ico.get('BOX',__class__)} '{model_name}' Secured in NanoVault.")
                 # Verify path and refresh model_subfolder metadata in vault.
-                valid_active_fq_path = self.vault.valid_active_fq_path(model_subfolder, model_name)
+                valid_active_fq_path = self.vault.valid_active_fq_path(model_path, model_name)
                 if valid_active_fq_path:
                     os.remove(valid_active_fq_path)
                     response['trimmed'] += 1

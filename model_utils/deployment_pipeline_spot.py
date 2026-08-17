@@ -31,13 +31,13 @@ class SpotDeploymentPipeline:
 
         print(self.env.ico.sep(1))
         for model in self.model_list:
-            model_name = model['name']
-            model_subfolder = model['directory']
-            url = model['url']
+            model_name = model['model_name']
+            model_path = model['model_path']
+            url = model['model_url']
 
             # Check if model exists in active path.
-            print(f"{self.env.ico.get("ACT",__class__)} Evaluating dependency '{model_subfolder}' '{model_name}'.")
-            active_fq_path = self.vault.get_active_fq_path(model_subfolder, model_name)
+            print(f"{self.env.ico.get("ACT",__class__)} Evaluating dependency '{model_path}' '{model_name}'.")
+            active_fq_path = self.vault.get_active_fq_path(model_path, model_name)
             if os.path.exists(active_fq_path):
                 print(f"{self.env.ico.get("DONE",__class__)} Exists in active configuration.")
                 print(self.env.ico.sep(2))
@@ -49,7 +49,7 @@ class SpotDeploymentPipeline:
             vault_fq_path = self.vault.get_valid_vault_fq_path(model_name)
             if vault_fq_path:
                 print(f"{self.env.ico.get("ACT",__class__)} Located in NanoVault.")
-                if self.vault.deploy_from_vault(model_subfolder, model_name):
+                if self.vault.deploy_from_vault(model_path, model_name):
                     print(f"{self.env.ico.get("BOX",__class__)} Deployed from Nanovault.")
                     print(self.env.ico.sep(2))
                     response['deployed'] += 1
@@ -62,7 +62,7 @@ class SpotDeploymentPipeline:
             if not os.path.exists(cached_path):
                 cached_path = None
                 print(f"{self.env.ico.get('ACT',__class__)} Downloading to cache.")
-                cached_path = self.fetcher.download_to_cache(url, model_name, model_subfolder)
+                cached_path = self.fetcher.download_to_cache(url, model_name, model_path)
                 if cached_path:
                     response["downloaded"] += 1
 
@@ -72,7 +72,7 @@ class SpotDeploymentPipeline:
                 continue
 
             print(f"{self.env.ico.get("DONE",__class__)} Performing spot deployment.")
-            if not self.vault.deploy_from_cache(model_subfolder, model_name):
+            if not self.vault.deploy_from_cache(model_path, model_name):
                 print(f"{self.env.ico.get("ERR",__class__)} Deployment failed.")
                 response['failed'] += 1
                 continue

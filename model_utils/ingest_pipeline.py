@@ -24,17 +24,17 @@ class IngestPipeline:
 
         print(self.env.ico.sep(1))
         for model in self.required_models:
-            name = model['name']
-            subfolder = model['directory']
-            active_file_path = os.path.join(self.env.active_root, subfolder, name)
+            model_name = model['model_name']
+            model_path = model['model_path']
+            active_file_path = os.path.join(self.env.active_root, model_path, model_name)
 
-            print(f"{self.env.ico.get("ACT",__class__)} '{name}' Evaluating model")
+            print(f"{self.env.ico.get("ACT",__class__)} '{model_name}' Evaluating model")
 
             # Step 1: Ensure the file actually exists on the NVMe
-            active_file_path = self.vault.get_active_fq_path(subfolder, name)
+            active_file_path = self.vault.get_active_fq_path(model_path, model_name)
             if not os.path.exists(active_file_path):
                 print(f"{self.env.ico.get("ALRT",__class__)} Not found on active. Cannot ingest.")
-                if self.vault.get_valid_vault_fq_path(name):
+                if self.vault.get_valid_vault_fq_path(model_name):
                     print(f"{self.env.ico.get("BOX",__class__)} Existing copy secured in NanoVault.")
                     response["secured"] += 1
                     print(self.env.ico.sep(2))
@@ -45,14 +45,14 @@ class IngestPipeline:
                 continue
 
             # Step 2: Check if it's ALREADY in the NanoVault vault
-            vault_path = self.vault.get_valid_vault_fq_path(name)
+            vault_path = self.vault.get_valid_vault_fq_path(model_name)
             if vault_path:
                 print(f"{self.env.ico.get("BOX",__class__)} Secured in NanoVault.")
                 response['secured']
                 print(self.env.ico.sep(2))
                 continue
             
-            if not self.vault.ingest_to_vault(active_file_path, name, delete_source=False):
+            if not self.vault.ingest_to_vault(active_file_path, model_name, delete_source=False):
                 print(f"{self.env.ico.get('BOX',__class__)} Ingest failure.")
                 response['failed'] += 1
                 print(self.env.ico.sep(2))

@@ -1,5 +1,6 @@
 class LogIcons:
     def __init__(self):
+        self.debug = False
         self.icons = standard_icons = {
             "ERR"  : "🛑 ",  # Hard errors (e.g., JSON decode failure, missing template)
             "ACT"  : "⚙️  ", # Action/Execution (e.g., moving files, downloading)
@@ -17,8 +18,9 @@ class LogIcons:
             "FOLD" : "📂 "
         }
 
-    def get(self, id, class_name=None, show_class=False):
-        if (class_name and show_class):
+    def get(self, id, class_name=None):
+        
+        if (class_name and self.debug):
             n = f'{class_name}'
             ret = f'{self.icons.get(id)} [{n[8:-2]}]'
         else:

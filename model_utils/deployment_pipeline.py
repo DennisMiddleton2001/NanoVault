@@ -31,9 +31,9 @@ class DeploymentPipeline:
 
         print(self.env.ico.sep(1))
         for model in self.model_list:
-            model_name = model['name']
-            model_subfolder = model['directory']
-            url = model['url']
+            model_name = model['model_name']
+            model_subfolder = model['model_path']
+            model_url = model['model_url']
 
             # Check if model exists in active path.
             print(f"{self.env.ico.get("ACT",__class__)} Evaluating dependency '{model_subfolder}' '{model_name}'.")
@@ -66,7 +66,7 @@ class DeploymentPipeline:
             else:
                 staging_fq_path = None
                 print(f"{self.env.ico.get('ACT',__class__)} Downloading to cache.")
-                staging_fq_path = self.fetcher.download_to_cache(url, model_name, model_subfolder)
+                staging_fq_path = self.fetcher.download_to_cache(model_url, model_name, model_subfolder)
 
             if staging_fq_path:
                 if not self.vault.ingest_to_vault(staging_fq_path, model_name, delete_source=True):
