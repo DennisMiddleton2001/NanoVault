@@ -21,6 +21,7 @@ class EnvironmentConfig:
             '--i',
             '--e',
             '--s',
+            '--model',
             '--scan-active',
             '--scan-vault',
             '--scan-workflow',

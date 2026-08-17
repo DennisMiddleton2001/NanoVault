@@ -8,7 +8,7 @@
             "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",
-            "args": ["--list-workflows", "/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/"],
+            "args": ["--scan-workflow", "/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/10E_Likeness_I2V.json"],
             "program": "nv.py",
 //            "program": "main.py",
             "console": "integratedTerminal"

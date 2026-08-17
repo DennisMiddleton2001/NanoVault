@@ -25,18 +25,18 @@ class LoadModel:
 
     # Used to check a model file in the vault and return its metadata and hash.
     def check_vault_model(self, model_name):
-        sidecar_hash = None
+        sidecar_meta = None
         self.file_path = os.path.join(self.env.vault_dir, model_name)
 
         sidecar_path = self.file_path + self.env.sidecar_ext
         if os.path.exists(sidecar_path):
             with open(sidecar_path, 'r') as f:
-                sidecar_hash = f.read()
+                sidecar_meta = json.load(f)
 
         model_info = self.check_model_fq_path()
 
-        if sidecar_hash:
-            model_info.update({"sidecar_hash": sidecar_hash})
+        if sidecar_meta:
+            model_info.update({"sidecar_hash": sidecar_meta})
 
         return model_info
 
