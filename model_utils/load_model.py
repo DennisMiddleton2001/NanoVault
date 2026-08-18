@@ -41,6 +41,7 @@ class LoadModel:
         return model_info
 
     # Used internally to check the fully qualified path of a model file and return its metadata.
+    # Used internally to check the fully qualified path of a model file and return its metadata.
     def check_model_fq_path(self, file_path=None):
 
         if file_path:
@@ -65,19 +66,16 @@ class LoadModel:
         try:
             model_entry["size"] = os.path.getsize(self.file_path)
             if model_entry["size"] < 1024:
-                raise ValueError(f"File size is invalid {model_entry['size']})")
+                raise ValueError(f"File size is invalid ({model_entry['size']})")
 
-            # Bypass the safetensors library entirely to avoid mmap deadlocks.
-            # Read only the lightweight JSON header directly from the binary.
             with open(self.file_path, 'rb') as f:
-                # Read the first 8 bytes to get the header length (little-endian 64-bit unsigned integer)
+                # Read the first 8 bytes (header length)
                 header_size_bytes = f.read(8)
                 if len(header_size_bytes) < 8:
                     raise ValueError("File is too small to be a valid safetensors file.")
 
                 header_size = struct.unpack('<Q', header_size_bytes)[0]
 
-                # Prevent malicious or corrupted oversized headers from blowing up RAM
                 if header_size > 100_000_000:
                     raise ValueError(f"Header size {header_size} bytes is abnormally large. Possible corruption.")
 
@@ -85,30 +83,46 @@ class LoadModel:
                 header_bytes = f.read(header_size)
                 header_json = json.loads(header_bytes.decode('utf-8'))
 
-                # Safetensors metadata is stored under the special '__metadata__' key
                 if self.debug:
-                    self.print_json(header_json)
                     model_entry["metadata"] = header_json.get("__metadata__", {})
 
-                # The remaining keys represent the actual tensors
+                # --- NEW: TRUNCATION & PAYLOAD INTEGRITY CHECK ---
+                # Safetensors format dictates that the binary data starts immediately 
+                # after the 8-byte length prefix + the JSON header bytes.
+                data_start_offset = 8 + header_size
+                max_end_offset = data_start_offset
+
                 metadata_offset = 1 if "__metadata__" in header_json else 0
+                
+                for key, info in header_json.items():
+                    if key == "__metadata__":
+                        continue
+                    
+                    # Each tensor entry specifies its data offsets as [start_byte, end_byte]
+                    if "data_offsets" in info:
+                        offsets = info["data_offsets"]
+                        if len(offsets) == 2:
+                            # Calculate absolute file position where this tensor ends
+                            tensor_end_abs = data_start_offset + offsets[1]
+                            if tensor_end_abs > max_end_offset:
+                                max_end_offset = tensor_end_abs
+
+                # If the actual physical file size is smaller than where the tensors claim to end, 
+                # the file was cut off mid-download!
+                if model_entry["size"] < max_end_offset:
+                    raise ValueError(
+                        f"File truncated! Expected at least {max_end_offset} bytes based on tensor offsets, "
+                        f"but file size is only {model_entry['size']} bytes."
+                    )
+                # ------------------------------------------------
+
                 model_entry["tensor_count"] = len(header_json) - metadata_offset
                 model_entry["valid"] = True
-        except ValueError as e:
+
+        except (ValueError, KeyError, json.JSONDecodeError) as e:
             model_entry["valid"] = False
             model_entry["error"] = str(e)
         finally:
             pass
 
         return model_entry
-
-
-        
-        
-
-
-
-
-        
-        
-

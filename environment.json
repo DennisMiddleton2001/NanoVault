@@ -1,8 +1,8 @@
 {
     "paths": {
         "active_root": "/home/darth-tedious/.sovereign-ai/ComfyUI/models/",
-        "staging_cache": "/run/media/darth-tedious/5eb65f8c-6e86-46ab-beaa-c2bec31b620c/download_cache",
-        "vault_dir": "/run/media/darth-tedious/5eb65f8c-6e86-46ab-beaa-c2bec31b620c/nano-vault/"
+        "vault_dir": "/run/media/darth-tedious/5eb65f8c-6e86-46ab-beaa-c2bec31b620c/nano-vault/",
+        "staging_cache": "/mnt/nvme-storage/download_cache/"
     },
     "fast_hash": true,
     "tokens": {
