@@ -11,7 +11,6 @@ if comfyui_root not in sys.path:
 from .env_config import EnvironmentConfig
 from .ingest_pipeline import IngestPipeline
 from .deployment_pipeline import DeploymentPipeline
-from .deployment_pipeline_spot import SpotDeploymentPipeline
 from .purge_pipeline import PurgePipeline
 from .trim_pipeline import TrimPipeline
 from .test_sweep import AnalyzeModelsFolder
@@ -52,7 +51,7 @@ class SovereignManager:
                     reply = DeploymentPipeline(self.env, model_list).run()
         elif self.command in ['--as']:
                     print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
-                    reply = SpotDeploymentPipeline(self.env, model_list).run()
+                    reply = DeploymentPipeline(self.env, model_list, spot_install = True).run()
         elif self.command in ['--t']:
             print(f"{self.env.ico.get('ACT',__class__)} TRIM: '{clean_path}'")
             reply = TrimPipeline(self.env, model_list).run()
@@ -83,27 +82,3 @@ class SovereignManager:
             reply = None
 
         return reply
-
-'''
-workflow_path = '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/'
-workflow_name = 'Remove Background (BiRefNet).json'
-fq_path = os.path.join(workflow_path, workflow_name)
-
-command_id=8
-
-commands = [
-    ['--a', fq_path],
-    ['--t', fq_path],
-    ['--i', fq_path],
-    ['--e', fq_path],
-    ['--s', fq_path],
-    ['--scan-active'],
-    ['--scan-vault'],
-    ['--scan-workflow', workflow_name],
-    ['--list-workflows', workflow_path]
-    ]
-
-retval = SovereignManager().execute(commands[command_id])
-print(retval)
-
-'''

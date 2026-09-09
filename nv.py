@@ -54,4 +54,6 @@ else:
 
 results = SovereignManager().execute(args)
 
+print(f"Input:\n{args}\n")
+print(f"Output:\n")
 print(json.dumps(results, indent=2))

@@ -7,9 +7,10 @@ from .vault_manager import VaultManager
 
 class DeploymentPipeline:
 
-    def __init__(self, env = None, model_list = None):
+    def __init__(self, env = None, model_list = None, spot_install = False):
 
         self.env = env
+        self.spot_install = spot_install
         self.vault = VaultManager(self.env)
         self.fetcher = ModelFetcher(self.env)
         self.model_list = model_list
@@ -19,7 +20,7 @@ class DeploymentPipeline:
 
     def run(self):
         response = {
-            "command"    : "DeploymentPipeline",
+            "command"    : "DeploymentPipeline" if not self.spot_install else "SpotDeploymentPipeline",
             "attempted"  : len(self.model_list),
             "successful" : int(0),
             "active"     : [],
@@ -68,7 +69,7 @@ class DeploymentPipeline:
 
             # See if we downloaded it completely or partially.
             staging_fq_path = self.vault.get_staging_fq_path(model_name)
-
+ 
             if os.path.exists(staging_fq_path):
                 cache_model_entry = self.vault.validate_file_structure(staging_fq_path)
                 if not cache_model_entry["valid"] and cache_model_entry["error"].find("CONTINUE_DOWNLOAD") >= 0:
@@ -77,29 +78,42 @@ class DeploymentPipeline:
                     print(f"{self.env.ico.get("WRN",__class__)} Corrupted download found. Attempting new download.")
                     os.remove(staging_fq_path)
             
-            if not len(model_url):
-                print(f"{self.env.ico.get("WRN",__class__)} No download url. Checking download cache folder.")
-            else:
-                print(f"{self.env.ico.get('COMM',__class__)} Downloading to cache.")
-
-            staging_fq_path = self.fetcher.download_to_cache(model_url, model_name, model_subfolder)
+            if not cache_model_entry["valid"]:
+                if not len(model_url):
+                    print(f"{self.env.ico.get("WRN",__class__)} No download url. Checking download cache folder.")
+                else:
+                    print(f"{self.env.ico.get('COMM',__class__)} Downloading to cache.")
+                staging_fq_path = self.fetcher.download_to_cache(model_url, model_name, model_subfolder)
 
             if not staging_fq_path:
-                print(f"{self.env.ico.get("ERR",__class__)} Download failure.")
+                print(f"{self.env.ico.get("ERR",__class__)} Invalid file in download cache.")
                 response["failed"].append(model_name)
+                print(self.env.ico.sep(2))
                 continue
 
-            if not self.vault.ingest_to_vault(staging_fq_path, model_entry, delete_source=True):
-                print(f"{self.env.ico.get("ERR",__class__)} Ingestion failed.")
-                response["failed"].append(model_name)
-                continue
+            # Skip vault ingest if spot install.
+            if not self.spot_install:
+                if not self.vault.ingest_to_vault(staging_fq_path, model_entry, delete_source=True):
+                    print(f"{self.env.ico.get("ERR",__class__)} Ingestion failed.")
+                    response["failed"].append(model_name)
+                    print(self.env.ico.sep(2))
+                    continue
+                print(f"{self.env.ico.get("COMM",__class__)} Ingested from internet download.")
 
-            print(f"{self.env.ico.get("COMM",__class__)} Ingested from internet download.")
             print(f"{self.env.ico.get("ACT",__class__)} Starting deployment.")
-            if not self.vault.deploy_from_vault(model_subfolder, model_name):
-                print(f"{self.env.ico.get("ERR",__class__)} Deployment failed.")
-                response["failed"].append(model_name)
-                continue
+
+            if not self.spot_install:
+                if not self.vault.deploy_from_vault(model_subfolder, model_name):
+                    print(f"{self.env.ico.get("ERR",__class__)} Deployment failed.")
+                    response["failed"].append(model_name)
+                    print(self.env.ico.sep(2))
+                    continue
+            else:
+                if not self.vault.deploy_from_cache(model_subfolder, model_name):
+                    print(f"{self.env.ico.get("ERR",__class__)} Deployment failed.")
+                    response["failed"].append(model_name)
+                    print(self.env.ico.sep(2))
+                    continue
 
             print(f"{self.env.ico.get("DONE",__class__)} Deployment complete.")
             response["download"].append(model_name)

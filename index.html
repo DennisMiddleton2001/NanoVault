@@ -424,6 +424,72 @@ const savedPath = localStorage.getItem('sanctuary_workflow_path');
                 };
             }
         }).mount('#app');
+
+        function parsePipelineResponse(res) {
+        const isCompleteSuccess = res.successful === res.attempted && (!res.failed || res.failed.length === 0);
+        const isPartial = res.successful > 0 && res.failed && res.failed.length > 0;
+
+        // Only populated arrays are converted into category blocks
+        const possibleCategories = [
+            { key: 'failed', label: 'Faults', items: res.failed, type: 'error', icon: '✖' },
+            { key: 'active', label: 'Already Active', items: res.active, type: 'success', icon: '✓' },
+            { key: 'vault', label: 'Restored from Vault', items: res.vault, type: 'vault', icon: '🗄' },
+            { key: 'download', label: 'Downloaded', items: res.download, type: 'download', icon: '↓' },
+            { key: 'purged', label: 'Purged from Cache', items: res.purged, type: 'warning', icon: '🗑' },
+            { key: 'excluded', label: 'Excluded Assets', items: res.excluded, type: 'neutral', icon: '⊘' }
+        ];
+
+        // Discard empty lists
+        const activeCategories = possibleCategories.filter(cat => Array.isArray(cat.items) && cat.items.length > 0);
+
+        return {
+            command: res.command,
+            statusText: isCompleteSuccess ? 'Success' : (isPartial ? 'Partial' : 'Failed'),
+            statusClass: isCompleteSuccess ? 'status-success' : (isPartial ? 'status-partial' : 'status-failed'),
+            ratio: `${res.successful}/${res.attempted}`,
+            message: res.message,
+            categories: activeCategories
+        };
+        }
+
+        function createLogEntryHTML(task) {
+        const p = task.parsed;
+        const time = task.startedAt ? task.startedAt.toLocaleTimeString() : '';
+
+        // Render each populated section
+        const sectionsHTML = p.categories.map(cat => `
+            <div class="log-bucket ${cat.type}">
+            <div class="bucket-header">
+                <span class="bucket-icon">${cat.icon}</span>
+                <span class="bucket-label">${cat.label}</span>
+                <span class="bucket-count">${cat.items.length}</span>
+            </div>
+            <ul class="bucket-list">
+                ${cat.items.map(item => `<li>${item}</li>`).join('')}
+            </ul>
+            </div>
+        `).join('');
+
+        return `
+            <div class="log-card ${p.statusClass}">
+            <div class="log-card-header" onclick="this.parentElement.classList.toggle('expanded')">
+                <span class="badge ${p.statusClass}">${p.statusText}</span>
+                <span class="cmd-tag">${p.command}</span>
+                <span class="workflow-name">${task.workflowName}</span>
+                <span class="ratio-pill">${p.ratio} Deployed</span>
+                <span class="timestamp">${time}</span>
+            </div>
+            <div class="log-card-body">
+                <div class="log-msg">${p.message}</div>
+                <div class="buckets-grid">
+                ${sectionsHTML}
+                </div>
+            </div>
+            </div>
+        `;
+        }
+
+
     </script>
 </body>
 </html>
