@@ -19,18 +19,21 @@ class DeploymentPipeline:
 
     def run(self):
         response = {
-            "success"    : True,
             "command"    : "DeploymentPipeline",
-            "message"    : "Deployment in progress.",
-            "total"      : len(self.model_list),
-            "active"     : 0,
-            "downloaded" : 0,
-            "deployed"   : 0,
-            "failed"     : 0
+            "attempted"  : len(self.model_list),
+            "successful" : int(0),
+            "active"     : [],
+            "download"   : [],
+            "vault"      : [],
+            "failed"     : [],
+            "purged"     : [],
+            "excluded"   : [],
+            "message"    : "Deployment in progress."
         }
 
         print(self.env.ico.sep(1))
         for model in self.model_list:
+            model_entry = model
             model_name = model['model_name']
             model_subfolder = model['model_path']
             model_url = model['model_url']
@@ -41,7 +44,8 @@ class DeploymentPipeline:
             if os.path.exists(active_fq_path):
                 print(f"{self.env.ico.get("DONE",__class__)} Exists in active configuration.")
                 print(self.env.ico.sep(2))
-                response['active'] += 1
+                response['active'].append(model_name)
+                response["successful"] += 1
                 continue
 
             # Check if model exists in NanoVault
@@ -52,45 +56,63 @@ class DeploymentPipeline:
                 if self.vault.deploy_from_vault(model_subfolder, model_name):
                     print(f"{self.env.ico.get("BOX",__class__)} Deployed from Nanovault.")
                     print(self.env.ico.sep(2))
-                    response['deployed'] += 1
+                    response["vault"].append(model_name)
+                    response["successful"] += 1
                     continue
                 else:
+                    # Don't set failed here.  We can still recover.
                     print(f"{self.env.ico.get("ACT",__class__)} Error deploying from NanoVault.")
 
-            # File doesn't exist in vault.  Fetch from URL.
-            print(f"{self.env.ico.get('WRN',__class__)} Vault file not found.")
-            
+            # File doesn't exist in vault. Not a failure yet.
+            print(f"{self.env.ico.get('WRN',__class__)} Valid vault file not found.")
+
+            # See if we downloaded it completely or partially.
             staging_fq_path = self.vault.get_staging_fq_path(model_name)
-            if os.path.exists(staging_fq_path) and self.vault.validate_file_structure(staging_fq_path):
-                print(f"{self.env.ico.get("COMM",__class__)} Downloaded file found in cache.")
+
+            if os.path.exists(staging_fq_path):
+                cache_model_entry = self.vault.validate_file_structure(staging_fq_path)
+                if not cache_model_entry["valid"] and cache_model_entry["error"].find("CONTINUE_DOWNLOAD") >= 0:
+                    print(f"{self.env.ico.get("COMM",__class__)} Truncated tensor found, continuing download.")
+                elif not cache_model_entry["valid"]:
+                    print(f"{self.env.ico.get("WRN",__class__)} Corrupted download found. Attempting new download.")
+                    os.remove(staging_fq_path)
+            
+            if not len(model_url):
+                print(f"{self.env.ico.get("WRN",__class__)} No download url. Checking download cache folder.")
             else:
-                staging_fq_path = None
-                print(f"{self.env.ico.get('ACT',__class__)} Downloading to cache.")
-                staging_fq_path = self.fetcher.download_to_cache(model_url, model_name, model_subfolder)
+                print(f"{self.env.ico.get('COMM',__class__)} Downloading to cache.")
 
-            if staging_fq_path:
-                if not self.vault.ingest_to_vault(staging_fq_path, model_name, delete_source=True):
-                    print(f"{self.env.ico.get("ERR",__class__)} Ingestion failed.")
-                    response['failed'] += 1
-                    continue
+            staging_fq_path = self.fetcher.download_to_cache(model_url, model_name, model_subfolder)
 
-                response['downloaded'] += 1
-                print(f"{self.env.ico.get("COMM",__class__)} Ingested from internet download.")
-                print(f"{self.env.ico.get("ACT",__class__)} Starting deployment.")
-                if not self.vault.deploy_from_vault(model_subfolder, model_name):
-                    print(f"{self.env.ico.get("ERR",__class__)} Deployment failed.")
-                    response["failed"] += 1
-                    continue
+            if not staging_fq_path:
+                print(f"{self.env.ico.get("ERR",__class__)} Download failure.")
+                response["failed"].append(model_name)
+                continue
 
-                response['deployed'] += 1
-                print(f"{self.env.ico.get("DONE",__class__)} Deployment complete.")
+            if not self.vault.ingest_to_vault(staging_fq_path, model_entry, delete_source=True):
+                print(f"{self.env.ico.get("ERR",__class__)} Ingestion failed.")
+                response["failed"].append(model_name)
+                continue
+
+            print(f"{self.env.ico.get("COMM",__class__)} Ingested from internet download.")
+            print(f"{self.env.ico.get("ACT",__class__)} Starting deployment.")
+            if not self.vault.deploy_from_vault(model_subfolder, model_name):
+                print(f"{self.env.ico.get("ERR",__class__)} Deployment failed.")
+                response["failed"].append(model_name)
+                continue
+
+            print(f"{self.env.ico.get("DONE",__class__)} Deployment complete.")
+            response["download"].append(model_name)
+            response["successful"] += 1
             print(self.env.ico.sep(2))
 
         print(self.env.ico.sep(1))
 
-        if response['failed']:
+        if not response['successful']:
+            response["message"] = "Deployment failed."
+        elif response['successful'] != response['attempted']:
             response["message"] = "Deployment completed with errors."
         else:
-            response["message"] = "Deployment completed."
+            response["message"] = "Deployment successful."
 
         return response

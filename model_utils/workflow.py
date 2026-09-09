@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import posixpath
 from .vault_manager import VaultManager
@@ -41,11 +42,11 @@ class WorkflowEnumerator:
 
 class WorkflowParser:
     def __init__(self, env=None, fq_path = None):
-        
         self.fq_path = fq_path
         self.valid_exts = ('.safetensors', '.ckpt', '.pt', '.pth', '.bin', '.gguf', '.onnx', '.sft')
         self.env = env
         self.vault = VaultManager(self.env)
+        # Use known path mappings for ComfyUI node types to their respective model folders
         self.NODE_TYPE_TO_FOLDER = {
             "CheckpointLoaderSimple": "checkpoints",
             "UNETLoader": "unet",
@@ -58,22 +59,35 @@ class WorkflowParser:
             "CLIPVisionLoader": "clip_vision",
             "CLIPLoader" : "clip",
             "LTXAVTextEncoderLoader": "clip",
-            "LTXVGemmaCLIPModelLoader": "clip"
+            "LTXVGemmaCLIPModelLoader": "clip",
+            "LoadBackgroundRemovalModel": "background_removal"
         }
+
+        # Load the workflow JSON file and add custom node type mappings.
+        model_path_map = os.path.join(".", "model_path_map.json")
+        if os.path.exists(model_path_map):
+            with open(model_path_map, 'r') as f:
+                try:
+                    custom_node_paths = json.load(f)
+                except:
+                    custom_node_paths = {}
+
+                if isinstance(custom_node_paths, dict):
+                        self.NODE_TYPE_TO_FOLDER.update(custom_node_paths)
 
         with open(self.fq_path, 'r') as f:
             self.workflow = json.load(f)
 
     def get_active_size(self, model_folder, model_name):
         valid_active_fq_path = self.vault.valid_active_fq_path(model_folder, model_name)
-        if not valid_active_fq_path:
+        if not valid_active_fq_path or not os.path.exists(valid_active_fq_path):
             return 0
         else:
             return os.path.getsize(valid_active_fq_path)
 
     def get_vault_size(self, model_name):
         valid_vault_fq_path = self.vault.get_valid_vault_fq_path(model_name)
-        if not valid_vault_fq_path:
+        if not valid_vault_fq_path or not os.path.exists(valid_vault_fq_path):
             return 0
         else:
             return os.path.getsize(valid_vault_fq_path)
@@ -82,7 +96,14 @@ class WorkflowParser:
         model_list = list()
         model_list = self.get_workflow_model_list()
         for model in model_list:
-            # Aggregate sizes
+            # If model path is a lora, special case that because it's going to be "models".
+            if model.get("node_type").lower().find("lora") > 0:
+                model["model_path"] = "loras"
+
+            # If model type is in the mappings, use it, otherwise use the template's model.
+            if model["model_path"] == "models":
+                model.update({"model_path" : self.NODE_TYPE_TO_FOLDER.get(model["node_type"])})
+
             active_size = self.get_active_size(model["model_path"], model['model_name'])
             vault_size  = self.get_vault_size(model['model_name'])
 
@@ -109,7 +130,10 @@ class WorkflowParser:
             if sg_id:
                 subgraph_map[sg_id] = sg.get("nodes", [])
 
-        # 2. The completely autonomous & DEFENSIVE recursive harvester
+        ''' The completely autonomous & DEFENSIVE recursive harvester
+            In order to truly understand recursion, you must first 
+            understand - RECURSION.
+        '''
         def traverse_nodes(nodes):
             if not nodes:
                 return
@@ -132,6 +156,7 @@ class WorkflowParser:
                 
                 # DEFENSIVE: Protect against "widgets_values": null in JSON
                 widgets = node.get("widgets_values")
+                
                 if not widgets: 
                     widgets = []
                     
@@ -175,7 +200,7 @@ class WorkflowParser:
                     if not model_path:
                         # Safely call self.NODE_TYPE_TO_FOLDER just in case it's missing
                         folder_map = getattr(self, 'NODE_TYPE_TO_FOLDER', {})
-                        model_path = folder_map.get(node_type, "models")
+                        model_path = folder_map.get(node_type, "unclassified")
 
                     models_found.append({
                         "node_type": node_type,
@@ -204,7 +229,9 @@ class WorkflowParser:
 
         return unique_models
 
-   
+'''
+As Seen on TV!!!
+
         models_found = []
         
         # The extensions we actually care about
@@ -342,3 +369,4 @@ class WorkflowParser:
                 unique_models.append(model)
 
         return unique_models
+'''

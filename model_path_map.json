@@ -1,0 +1,11 @@
+{
+    "CheckpointLoaderSimple": "checkpoints",
+    "LoraLoader": "loras",
+    "CLIPLoader": "text_encoders",
+    "UNETLoader": "diffusion_models",
+    "DualCLIPLoader": "text_encoders",
+    "CLIPVisionLoader": "clip_vision",
+    "unCLIPCheckpointLoader": "checkpoints",
+    "CheckpointLoader": "configs",
+    "LoraLoaderModelOnly": "loras"
+}

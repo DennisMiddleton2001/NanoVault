@@ -64,9 +64,12 @@ class LoadModel:
             return model_entry
 
         try:
+            if not os.path.exists(self.file_path):
+                 raise ValueError(f"File not found.")
+
             model_entry["size"] = os.path.getsize(self.file_path)
             if model_entry["size"] < 1024:
-                raise ValueError(f"File size is invalid ({model_entry['size']})")
+                 raise ValueError(f"Not a tensor file.")
 
             with open(self.file_path, 'rb') as f:
                 # Read the first 8 bytes (header length)
@@ -77,7 +80,7 @@ class LoadModel:
                 header_size = struct.unpack('<Q', header_size_bytes)[0]
 
                 if header_size > 100_000_000:
-                    raise ValueError(f"Header size {header_size} bytes is abnormally large. Possible corruption.")
+                    raise ValueError(f"Invalid header size.")
 
                 # Read the JSON header string
                 header_bytes = f.read(header_size)
@@ -111,8 +114,7 @@ class LoadModel:
                 # the file was cut off mid-download!
                 if model_entry["size"] < max_end_offset:
                     raise ValueError(
-                        f"File truncated! Expected at least {max_end_offset} bytes based on tensor offsets, "
-                        f"but file size is only {model_entry['size']} bytes."
+                        f"CONTINUE_DOWNLOAD : {model_entry['size']} of {max_end_offset} bytes."
                     )
                 # ------------------------------------------------
 

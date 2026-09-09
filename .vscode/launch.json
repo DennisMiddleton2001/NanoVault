@@ -8,9 +8,10 @@
             "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",
-            "args": ["--model", "/home/darth-tedious/.sovereign-ai/ComfyUI/models/text_encoders/qwen3vl_4b_fp8_scaled.safetensors"],
+            "args": ["--a", "/home/darth-tedious/Vaults/Personal/Real/JSON/JSON_IND/BGR.json"],
             "program": "nv.py",
 //            "program": "main.py",
+//            "program": "class_mappings.py",
             "console": "integratedTerminal"
         }
     ]

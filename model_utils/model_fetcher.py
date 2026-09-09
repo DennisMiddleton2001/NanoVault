@@ -33,7 +33,6 @@ class ModelFetcher:
             print(self.env.ico.sep(4))
             subprocess.run(wget_cmd, check=True)
         except subprocess.CalledProcessError:
-            print(f"{ico.get('ERR',__class__)} DOWNLOAD FAILED")
             print(f"MODEL    : {model_name}")
             print(f"DIRECTORY: {target_dir}")
             print(f"URL      : {url}")

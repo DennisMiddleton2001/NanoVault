@@ -83,16 +83,11 @@ class VaultManager:
             return self.calculate_xxh_hash(model_fq_path) if self.env.fast_hash else self.calculate_sha_hash(model_fq_path)
 
     def validate_file_structure(self, source_fq_path):
-
-        if not os.path.exists(source_fq_path):
-            return False
-        
         model_entry = LoadModel(self.env, source_fq_path).analyze()
-        if not model_entry['valid']:
-            return False
-
-        return True
-
+        # Incomplete downloads aren't valid. 
+        # Partial downloads will give a "CONTINUE" keyword for download continuation.
+        return model_entry
+    
     def refresh_vault(self):
             #Much work to be done here.
             return
@@ -130,32 +125,25 @@ class VaultManager:
         vault_fq_path = self.get_fq_vault_path(model_name)
         sidecar_fq_path = self.get_fq_sidecar_path(vault_fq_path)
         try:
-            os.remove(sidecar_fq_path)
-        except:
-            pass
-
-        try:
             os.remove(vault_fq_path)
         except:
             pass
 
-        return True
+        try:
+            os.remove(sidecar_fq_path)
+        except:
+            pass
 
-    def ingest_to_vault(self, source_fq_path, model_name, delete_source = True):
+    def ingest_to_vault(self, source_fq_path, model_entry = None, delete_source = True):
         ingest_from_active = None
 
-        if source_fq_path.find(self.env.active_root) >= 0:
-            ingest_from_active = True
-            model_subfolder = self.get_model_subfolder(source_fq_path, model_name)
-            print(f"{self.env.ico.get('ACT',__class__)} Ingesting from active folder '{model_subfolder}'.")
-        else:
-            ingest_from_active = False
-            print(f"{self.env.ico.get('ACT',__class__)} Ingesting from staging cache.")
-            model_subfolder = ""
+        model_path = model_entry.get("model_path")
+        model_name = model_entry.get("model_name")
         
         print(f"{self.env.ico.get('ACT',__class__)} Validating tensor data.")
-        if not self.validate_file_structure(source_fq_path):
-            print(f"{self.env.ico.get('ERR',__class__)} Corrupted tensor data.")
+        loaded_model = self.validate_file_structure(source_fq_path)
+        if not loaded_model['valid']:
+            print(f"{self.env.ico.get('ERR',__class__)} {loaded_model['error']}.")
             return False
         print(f"{self.env.ico.get('ACT',__class__)} Tensor data validated.")
 
@@ -188,7 +176,8 @@ class VaultManager:
 
         sidecar_entry = {
             "hash"            : dest_file_hash,
-            "model_subfolder" : model_subfolder if ingest_from_active else ""
+            "model_subfolder" : model_entry["model_path"],
+            "node_type" : model_entry["node_type"]
         }
 
         if not self.write_sidecar_entry(dest_fq_path, sidecar_entry):
@@ -206,11 +195,11 @@ class VaultManager:
                 return False
 
             sidecar_entry = self.read_sidecar_entry(vault_fq_path)
-            if not sidecar_entry:
-                print(f"{self.env.ico.get('WRN',__class__)} No sidecar metadata found. Unable to verify integrity.")
+            if not sidecar_entry or not os.path.exists(vault_fq_path):
+                print(f"{self.env.ico.get('WRN',__class__)} Vault entry for model cannot be verified.")
                 return False
 
-            # Our path isn't really valid, so we just get the path string now.
+            # Our model path isn't really valid, so we just get the path string now.
             active_path = self.get_active_fq_path(model_subfolder, model_name)
             print(f"{self.env.ico.get('BOX',__class__)} Retrieving from NanoVault.")
             shutil.copy2(vault_fq_path, active_path) 
@@ -249,7 +238,8 @@ class VaultManager:
             return True
 
     def deploy_from_cache(self, model_subfolder, model_name):
-
+                # Call this after download is verifiably complete or it will
+                # wipe out your partial download.
                 active_path = self.get_active_fq_path(model_subfolder, model_name)
 
                 staging_fq_path = self.get_staging_fq_path(model_name)
@@ -258,9 +248,9 @@ class VaultManager:
                     return False
 
                 print(f"{self.env.ico.get('BOX',__class__)} Spot deployment.")
-
-                if not self.validate_file_structure(staging_fq_path):
-                    print(f"{self.env.ico.get('ERR',__class__)} File corrupted during download. Deleting.")
+                loaded_model =  self.validate_file_structure(staging_fq_path)
+                if not loaded_model['valid']:
+                    print(f"{self.env.ico.get('ERR',__class__)} {loaded_model['error']}..")
                     try:
                         os.remove(staging_fq_path)
                     except:
