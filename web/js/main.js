@@ -56,6 +56,14 @@ createApp({
       }, duration);
     };
 
+    const scrollToTop = async () => {
+      await nextTick();
+      const container = document.querySelector('.overflow-y-auto.font-mono');
+      if (container) {
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    };
+
     const scrollToBottom = async () => {
       await nextTick();
       const container = document.querySelector('.overflow-y-auto.font-mono');
@@ -103,7 +111,7 @@ createApp({
 
           // Refresh storage & workflows on completion
           loadWorkflows();
-          scrollToBottom();
+          scrollToTop();
         }
       }
     );
