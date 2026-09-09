@@ -69,8 +69,12 @@ class DeploymentPipeline:
 
             # See if we downloaded it completely or partially.
             staging_fq_path = self.vault.get_staging_fq_path(model_name)
- 
-            if os.path.exists(staging_fq_path):
+
+            if not os.path.exists(staging_fq_path):
+                # If the file doesn't exist in the cache, it's easy. Just download it.
+                staging_fq_path = self.fetcher.download_to_cache(model_url, model_name, model_subfolder)
+            else:
+                # If it does exist, we need to know whether it's worth continuing the download or deleting it.
                 cache_model_entry = self.vault.validate_file_structure(staging_fq_path)
                 if not cache_model_entry["valid"] and cache_model_entry["error"].find("CONTINUE_DOWNLOAD") >= 0:
                     print(f"{self.env.ico.get("COMM",__class__)} Truncated tensor found, continuing download.")
@@ -78,15 +82,15 @@ class DeploymentPipeline:
                     print(f"{self.env.ico.get("WRN",__class__)} Corrupted download found. Attempting new download.")
                     os.remove(staging_fq_path)
             
-            if not cache_model_entry["valid"]:
-                if not len(model_url):
-                    print(f"{self.env.ico.get("WRN",__class__)} No download url. Checking download cache folder.")
-                else:
-                    print(f"{self.env.ico.get('COMM',__class__)} Downloading to cache.")
-                staging_fq_path = self.fetcher.download_to_cache(model_url, model_name, model_subfolder)
+                if not cache_model_entry["valid"]:
+                    if not len(model_url):
+                        print(f"{self.env.ico.get("WRN",__class__)} No download url. Checking download cache folder.")
+                    else:
+                        print(f"{self.env.ico.get('COMM',__class__)} Downloading to cache.")
+                    staging_fq_path = self.fetcher.download_to_cache(model_url, model_name, model_subfolder)
 
-            if not staging_fq_path:
-                print(f"{self.env.ico.get("ERR",__class__)} Invalid file in download cache.")
+            if not staging_fq_path or not os.path.exists(staging_fq_path):
+                print(f"{self.env.ico.get("ERR",__class__)} Missing or invalid file in download cache.")
                 response["failed"].append(model_name)
                 print(self.env.ico.sep(2))
                 continue
