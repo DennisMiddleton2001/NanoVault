@@ -15,10 +15,13 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # --- THE MISSING LINK: Mount model_utils so environment.json is directly accessible ---
 app.mount("/model_utils", StaticFiles(directory=os.path.join(BASE_DIR, "model_utils")), name="model_utils")
-
+# Point the sub-routes directly to the web/ subdirectories
+app.mount("/js", StaticFiles(directory=os.path.join(BASE_DIR, "web", "js")), name="js")
+app.mount("/css", StaticFiles(directory=os.path.join(BASE_DIR, "web", "css")), name="css")
 @app.get("/", response_class=HTMLResponse)
+
 async def load_control_center():
-    ui_path = os.path.join(BASE_DIR, "index.html")
+    ui_path = os.path.join(BASE_DIR, "web","index.html")
     if not os.path.exists(ui_path):
         return HTMLResponse(content=f"<h1>[CRITICAL ERROR]</h1><p>UI not found at {ui_path}</p>", status_code=404)
     with open(ui_path, "r", encoding="utf-8") as f:
@@ -66,9 +69,10 @@ async def execute_command(request: Request):
 
 if __name__ == "__main__":
     port = 8000
-    while True:
-        try:
-            print(f"[SYSTEM INIT] Sovereign Gateway online. Binding to 0.0.0.0:{port}")
-            uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
-        except:
-                port += 1
+    
+    try:
+        print(f"[SYSTEM INIT] Sovereign Gateway online. Binding to 0.0.0.0:{port}")
+        uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False,)
+    except:
+            sys.exit(0)
+
