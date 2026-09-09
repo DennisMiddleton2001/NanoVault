@@ -56,11 +56,15 @@ export function evaluateWorkflowStatus(workflow) {
  * Normalizes and categorizes pipeline execution responses.
  * Empty arrays are omitted.
  */
+/**
+ * Resolves source buckets into human-readable action summaries
+ * based on the active pipeline opcode.
+ */
 export function parsePipelineResponse(res) {
   if (!res) {
     return {
       command: 'Unknown',
-      statusText: 'Failed',
+      statusText: 'FAILED',
       statusClass: 'border-rose-500/60',
       badgeClass: 'bg-rose-950 text-rose-400 border border-rose-800',
       ratio: '0/0',
@@ -71,59 +75,111 @@ export function parsePipelineResponse(res) {
 
   const isSuccess = res.successful === res.attempted && (!res.failed || res.failed.length === 0);
   const isPartial = res.successful > 0 && res.failed && res.failed.length > 0;
+  const cmd = res.command || '';
 
-  const possibleCategories = [
-    {
-      key: 'failed',
-      label: 'Faults',
-      items: res.failed,
-      borderClass: 'border-rose-500',
-      textClass: 'text-rose-400'
-    },
-    {
-      key: 'active',
-      label: 'Already Active',
-      items: res.active,
-      borderClass: 'border-cyan-500',
-      textClass: 'text-cyan-400'
-    },
-    {
-      key: 'vault',
-      label: 'Restored from Vault',
-      items: res.vault,
-      borderClass: 'border-emerald-500',
-      textClass: 'text-emerald-400'
-    },
-    {
-      key: 'download',
-      label: 'Downloaded',
-      items: res.download,
-      borderClass: 'border-blue-500',
-      textClass: 'text-blue-400'
-    },
-    {
-      key: 'purged',
-      label: 'Purged from Cache',
-      items: res.purged,
-      borderClass: 'border-amber-500',
-      textClass: 'text-amber-400'
-    },
-    {
-      key: 'excluded',
-      label: 'Excluded Assets',
-      items: res.excluded,
-      borderClass: 'border-slate-500',
-      textClass: 'text-slate-400'
+  const isIngest = cmd.includes('Ingest') || cmd === '--i';
+  const isTrim   = cmd.includes('Trim') || cmd === '--t';
+  const isEvict  = cmd.includes('Evict') || cmd === '--e';
+
+  let possibleCategories = [];
+
+  if (isEvict) {
+    // Evict exclusively tracks deletions and exclusions
+    possibleCategories = [
+      {
+        key: 'failed',
+        label: 'Faults',
+        items: res.failed,
+        borderClass: 'border-rose-500',
+        textClass: 'text-rose-400'
+      },
+      {
+        key: 'purged',
+        label: 'Evicted from System',
+        items: res.purged,
+        borderClass: 'border-amber-500',
+        textClass: 'text-amber-400'
+      },
+      {
+        key: 'excluded',
+        label: 'Excluded / Preserved',
+        items: res.excluded,
+        borderClass: 'border-slate-500',
+        textClass: 'text-slate-400'
+      }
+    ];
+  } else {
+    // Context-aware labels for deployment, ingest, and trim
+    let activeLabel = 'Already Active';
+    let vaultLabel  = 'Restored from Vault';
+    let purgedLabel = 'Purged from Cache';
+
+    if (isIngest) {
+      activeLabel = 'Vaulted from Active';
+      vaultLabel  = 'Already in Vault';
+    } else if (isTrim) {
+      activeLabel = 'Active Preserved';
+      vaultLabel  = 'Vault Retained';
+      purgedLabel = 'Trimmed from Active';
     }
-  ];
 
-  // Only retain populated arrays
-  const categories = possibleCategories.filter(cat => Array.isArray(cat.items) && cat.items.length > 0);
+    possibleCategories = [
+      {
+        key: 'failed',
+        label: 'Faults',
+        items: res.failed,
+        borderClass: 'border-rose-500',
+        textClass: 'text-rose-400'
+      },
+      {
+        key: 'active',
+        label: activeLabel,
+        items: res.active,
+        borderClass: 'border-cyan-500',
+        textClass: 'text-cyan-400'
+      },
+      {
+        key: 'vault',
+        label: vaultLabel,
+        items: res.vault,
+        borderClass: 'border-emerald-500',
+        textClass: 'text-emerald-400'
+      },
+      {
+        key: 'download',
+        label: 'Downloaded to Active',
+        items: res.download,
+        borderClass: 'border-blue-500',
+        textClass: 'text-blue-400'
+      },
+      {
+        key: 'purged',
+        label: purgedLabel,
+        items: res.purged,
+        borderClass: 'border-amber-500',
+        textClass: 'text-amber-400'
+      },
+      {
+        key: 'excluded',
+        label: 'Excluded Assets',
+        items: res.excluded,
+        borderClass: 'border-slate-500',
+        textClass: 'text-slate-400'
+      }
+    ];
+  }
+
+  // Filter out any empty lists
+  const categories = possibleCategories.filter(
+    cat => Array.isArray(cat.items) && cat.items.length > 0
+  );
 
   return {
-    command: res.command || 'Pipeline',
+    command: cmd || 'Pipeline',
     statusText: isSuccess ? 'SUCCESS' : (isPartial ? 'PARTIAL' : 'FAILED'),
-    statusClass: isSuccess ? 'border-emerald-500/60' : (isPartial ? 'border-amber-500/60' : 'border-rose-500/60'),
+    statusClass: isSuccess 
+      ? 'border-emerald-500/60' 
+      : (isPartial ? 'border-amber-500/60' : 'border-rose-500/60'),
     badgeClass: isSuccess 
       ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' 
       : (isPartial ? 'bg-amber-950 text-amber-400 border border-amber-800' : 'bg-rose-950 text-rose-400 border border-rose-800'),

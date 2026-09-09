@@ -8,9 +8,9 @@
             "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",
-            "args": ["--a", "/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/EDIT_IMG_UPSCALE.json"],
-            "program": "nv.py",
-//            "program": "main.py",
+//            "args": ["--a", "/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/EDIT_IMG_UPSCALE.json"],
+//            "program": "nv.py",
+            "program": "main.py",
             "console": "integratedTerminal"
         }
     ]
