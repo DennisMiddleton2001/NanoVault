@@ -10,24 +10,11 @@ env_path = os.path.join(".", "environment.json")
 
 class EnvironmentConfig:
     """Manages system paths, environment states, and API credentials."""
-    def __init__(self, env_path = env_path, show_banner=True):
+    def __init__(self, env_path = env_path, show_banner=True, show_config=False):
         config_error = False
+        self.show_config = show_config
         self.ico = LogIcons()
         self.env_path = env_path
-        self.valid_commands = [
-            '--a',
-            '--as',
-            '--t',
-            '--i',
-            '--e',
-            '--s',
-            '--model',
-            '--scan-active',
-            '--scan-vault',
-            '--scan-workflow',
-            '--list-workflows',
-            '--query-metal-storage',
-            '--scan-all']
         
         if show_banner:
             Banner()
@@ -41,14 +28,14 @@ class EnvironmentConfig:
             self.active_root   = os.path.expanduser(os.path.join('.', paths.get('active_root')))
             self.staging_cache = os.path.expanduser(os.path.join('.', paths.get('staging_cache')))
             self.vault_dir     = os.path.expanduser(os.path.join('.', paths.get('vault_dir')))
-
-            # Get fast_hash value.
             self.fast_hash = env.get("fast_hash")
             self.sidecar_ext = ".xxh128" if self.fast_hash else ".sha256"
-            # Initialize tokens for CLI repo access.
             tokens = env.get("tokens")
             self.hf_token = tokens.get("hf_token")
             self.civitai_token = tokens.get("civitai_token")
+            persist = env.get('exclude_from_purge')
+            self.immutable = persist
+
         except Exception as e:
             #if something is wrong with JSON, point out the line number.
             print(f"{self.ico.get('ERR')} - ERROR: {self.env_path}\n{e}")
@@ -58,6 +45,11 @@ class EnvironmentConfig:
         pc = Path(self.staging_cache)
         pv = Path(self.vault_dir)
         
+        if self.show_config:
+            self.print_config()
+
+
+    def print_config(self):
         print(f"NanoArch Configuration")
         print(self.ico.sep(0))
         print(f"CONFIG : '{self.env_path}'\n")
@@ -88,8 +80,6 @@ class EnvironmentConfig:
         print(f"{self.ico.get('KEY')} CIVITAI_TOKEN  : {self.civitai_token[:10]}...")
 
         print()
-        persist = env.get('exclude_from_purge')
-        self.immutable = persist
 
         if len(persist):
             print(f"{self.ico.get('LIGHT')} Locked From Purge")
@@ -100,8 +90,4 @@ class EnvironmentConfig:
         print(self.ico.sep(0))
         if config_error:
             print(f"{self.ico.get('ERR')} Unable to continue - verify paths.")
-            
 
-
-
-        

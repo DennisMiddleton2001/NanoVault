@@ -10,35 +10,45 @@ export function formatBytes(bytes) {
 }
 
 /**
- * Evaluates the model status for a workflow.
+ * Evaluates execution readiness based on active models vs total models.
+ * - 0 / N: Red (Not ready)
+ * - 1..(N-1) / N: Yellow (Partially ready)
+ * - N / N: Green (Fully ready to run)
  */
 export function evaluateWorkflowStatus(workflow) {
   const models = workflow.models || [];
-  let active = 0;
-  let vaulted = 0;
-  let missing = 0;
+  const total = models.length;
 
-  models.forEach(m => {
-    if (m.active_size > 0) active++;
-    else if (m.vault_size > 0) vaulted++;
-    else missing++;
-  });
-
-  if (missing > 0) {
+  if (total === 0) {
     return {
-      label: `${missing} Missing`,
+      label: '0/0 Ready',
+      cls: 'bg-slate-900 text-slate-400 border-slate-700/60 hover:border-slate-500'
+    };
+  }
+
+  // Count models present in active path (size > 0)
+  const activeCount = models.filter(m => (m.active_size || 0) > 0).length;
+
+  // 0 / N ready -> Red
+  if (activeCount === 0) {
+    return {
+      label: `${activeCount}/${total} Ready`,
       cls: 'bg-rose-950 text-rose-300 border-rose-800/60 hover:border-rose-500'
     };
   }
-  if (vaulted > 0) {
+
+  // N / N ready -> Green
+  if (activeCount === total) {
     return {
-      label: `${vaulted} Vaulted`,
-      cls: 'bg-amber-950 text-amber-300 border-amber-800/60 hover:border-amber-500'
+      label: `${activeCount}/${total} Ready`,
+      cls: 'bg-emerald-950 text-emerald-300 border-emerald-800/60 hover:border-emerald-500'
     };
   }
+
+  // Partial (1 to N-1) -> Yellow/Amber
   return {
-    label: `${active}/${active} Ready`,
-    cls: 'bg-emerald-950 text-emerald-300 border-emerald-800/60 hover:border-emerald-500'
+    label: `${activeCount}/${total} Ready`,
+    cls: 'bg-amber-950 text-amber-300 border-amber-800/60 hover:border-amber-500'
   };
 }
 

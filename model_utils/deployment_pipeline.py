@@ -52,7 +52,7 @@ class DeploymentPipeline:
             # Check if model exists in NanoVault
             print(f"{self.env.ico.get("ACT",__class__)} Checking NanoVault for '{model_name}'.")
             vault_path = self.vault.get_valid_vault_fq_path(model_name)
-            if vault_path:
+            if vault_path and os.path.exists(vault_path):
                 print(f"{self.env.ico.get("ACT",__class__)} Located in NanoVault.")
                 if self.vault.deploy_from_vault(model_subfolder, model_name):
                     print(f"{self.env.ico.get("BOX",__class__)} Deployed from Nanovault.")

@@ -60,7 +60,8 @@ class WorkflowParser:
             "CLIPLoader" : "clip",
             "LTXAVTextEncoderLoader": "clip",
             "LTXVGemmaCLIPModelLoader": "clip",
-            "LoadBackgroundRemovalModel": "background_removal"
+            "LoadBackgroundRemovalModel": "background_removal",
+            "UpscaleModelLoader": "upscale_models"
         }
 
         # Load the workflow JSON file and add custom node type mappings.
@@ -200,7 +201,7 @@ class WorkflowParser:
                     if not model_path:
                         # Safely call self.NODE_TYPE_TO_FOLDER just in case it's missing
                         folder_map = getattr(self, 'NODE_TYPE_TO_FOLDER', {})
-                        model_path = folder_map.get(node_type, "unclassified")
+                        model_path = folder_map.get(node_type, "//default to blow_$hi723n_up\\\\")
 
                     models_found.append({
                         "node_type": node_type,

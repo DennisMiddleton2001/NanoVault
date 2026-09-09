@@ -2,6 +2,7 @@
 import os
 import sys
 import json
+from datetime import datetime
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 comfyui_root = os.path.abspath(os.path.join(current_dir, ".."))
@@ -24,14 +25,30 @@ class SovereignManager:
     """The universal runtime management class. Routes CLI commands to the correct pipeline."""
     def __init__(self):
         self.env = EnvironmentConfig()
+        self.valid_commands = [
+            '--a',
+            '--as',
+            '--t',
+            '--i',
+            '--e',
+            '--s',
+            '--model',
+            '--scan-active',
+            '--scan-vault',
+            '--scan-workflow',
+            '--list-workflows',
+            '--query-metal-storage',
+            '--scan-all']
 
     def execute(self, args_list):
-        print(args_list)
+        start_time = datetime.now()
+        print(f"[{start_time}] Command: {args_list}")
+
         self.target_path = None
         self.command = args_list[0].lower()
         argc = len(args_list)
                 
-        if not self.command in self.env.valid_commands:
+        if not self.command in self.valid_commands:
             return False
                 
         if argc > 1:
@@ -81,4 +98,8 @@ class SovereignManager:
             print(f"{self.env.ico.get("ERR",__class__)} Unrecognized command line '{self.command}'")
             reply = None
 
+        end_time = datetime.now()
+        print(f"[{start_time}] {args_list}")
+        print(f"[{end_time}] Completed")
+        print(json.dumps(reply, indent=2))
         return reply

@@ -116,9 +116,9 @@ class VaultManager:
     def get_valid_vault_fq_path(self, model_name):
         vault_fq_path  = self.get_fq_vault_path(model_name)
 
-        if not self.read_sidecar_entry(vault_fq_path):
+        if not self.read_sidecar_entry(vault_fq_path) or not os.path.exists(vault_fq_path):
             return None
-        
+
         return vault_fq_path
 
     def free_vault_file(self, model_name):

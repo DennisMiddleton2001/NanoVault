@@ -54,8 +54,7 @@ class IngestPipeline:
                     print(self.env.ico.sep(2))
                     continue
 
-            # Model was found on active NVMe save in active list.
-            response["active"].append(model_name)
+            # Model was found on active NVMe.
 
             # Check if VALIDATED model ALREADY in the NanoVault vault
             if self.vault.get_valid_vault_fq_path(model_name):
@@ -73,7 +72,7 @@ class IngestPipeline:
                 continue
             else:
                 response["successful"] += 1
-                response["vault"].append(model_name)
+                response["active"].append(model_name)
                 print(self.env.ico.sep(2))
                 continue
 

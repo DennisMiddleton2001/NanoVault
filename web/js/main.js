@@ -178,7 +178,7 @@ createApp({
 
     const inspectWorkflow = (wf) => {
       const details = buildModelInspectorData(wf);
-      const summary = details.map(d => `${d.name} -> [${d.state}] (${d.folder})`).join('\n');
+      const summary = details.map(d => `[${d.state}] ${d.name}(${d.folder})`).join('\n');
       alert(`Model Dependencies for ${wf.name}:\n\n${summary}`);
     };
 
