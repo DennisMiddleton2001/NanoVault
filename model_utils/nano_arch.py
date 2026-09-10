@@ -98,8 +98,9 @@ class SovereignManager:
             print(f"{self.env.ico.get("ERR",__class__)} Unrecognized command line '{self.command}'")
             reply = None
 
-        end_time = datetime.now()
-        print(f"[{start_time}] {args_list}")
-        print(f"[{end_time}] Completed")
-        print(json.dumps(reply, indent=2))
+        if not self.command in ['--list-workflows']:
+            end_time = datetime.now()
+            print(f"[{start_time}] {args_list}")
+            print(f"[{end_time}] Completed")
+            print(json.dumps(reply, indent=2))
         return reply
