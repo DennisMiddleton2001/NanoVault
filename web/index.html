@@ -45,8 +45,20 @@
                 <div class="h-5 w-px bg-sanctuary-border"></div>
                 <div class="flex items-center space-x-2 text-xs">
                     <span class="text-slate-400 w-24">WorkflowPath:</span>
-                    <input type="text" v-model="workflowPath" @keyup.enter="loadWorkflows" class="bg-sanctuary-bg border border-sanctuary-border rounded px-2 py-0.5 font-mono text-cyan-200 focus:outline-none focus:border-cyan-500 w-96 transition">
-                    <button @click="loadWorkflows" class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 text-black font-semibold rounded transition shadow-[0_0_15px_rgba(6,182,212,0.3)]">Load Path</button>
+                    <input 
+                    type="text" 
+                    name="workflow-path"
+                    aria-label="Workflow Path"
+                    v-model="workflowPath"
+                    class="bg-sanctuary-bg border border-sanctuary-border rounded px-2 py-0.5 font-mono text-cyan-200 focus:outline-none focus:border-cyan-500 w-96 transition"
+                    >
+                    <button 
+                    @click="loadWorkflows" 
+                    :disabled="!!activeTask || pendingCount > 0 || isRefreshing"
+                    class="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 text-black font-semibold rounded transition shadow-[0_0_15px_rgba(6,182,212,0.3)] disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:bg-cyan-600 disabled:shadow-none"
+                    >
+                    Load Path
+                    </button>
                 </div>
             </div>
             
@@ -70,12 +82,18 @@
                         <span class="font-mono text-emerald-400 font-semibold">{{ vaultSize }}</span>
                     </div>
                 </div>
-                
-                <button @click="queryMetalStorage" class="flex items-center space-x-1.5 px-3 py-2 bg-cyan-950/50 hover:bg-cyan-900/50 text-cyan-400 border border-cyan-800/50 rounded-lg transition shadow-[0_0_10px_rgba(6,182,212,0.1)]" title="Refresh Metal Storage">
-                    <svg class="w-4 h-4" :class="{'animate-spin': isRefreshing}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                    <span>Refresh</span>
+                <button 
+                    @click="queryMetalStorage" 
+                    :disabled="!!activeTask || pendingCount > 0 || isRefreshing"
+                    class="flex items-center space-x-1.5 px-3 py-2 bg-cyan-950/50 hover:bg-cyan-900/50 text-cyan-400 border border-cyan-800/50 rounded-lg transition shadow-[0_0_10px_rgba(6,182,212,0.1)] disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none disabled:hover:bg-cyan-950/50 disabled:shadow-none" 
+                    title="Refresh Metal Storage"
+                >
+                    <svg class="w-4 h-4 pointer-events-none" :class="{'animate-spin': isRefreshing}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                    </svg>
+                    <span class="pointer-events-none">Refresh</span>
                 </button>
-            </div>
+                </div>
         </header>
 
         <!-- Main Workspace -->
@@ -184,6 +202,61 @@
                 </div>
             </div>
         </div>
+
+        <!-- Model Inspector Modal -->
+        <div 
+        v-if="inspectorModal.isOpen" 
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+        @click.self="closeInspectorModal"
+        >
+        <div class="bg-slate-900 border border-cyan-800/80 rounded-xl shadow-[0_0_30px_rgba(6,182,212,0.2)] max-w-2xl w-full flex flex-col overflow-hidden">
+            
+            <!-- Modal Header -->
+            <div class="flex items-center justify-between px-5 py-3 border-b border-cyan-900/60 bg-slate-950/60">
+            <h3 class="font-mono text-sm font-semibold text-cyan-300 truncate" :title="inspectorModal.title">
+                {{ inspectorModal.title }}
+            </h3>
+            <button 
+                @click="closeInspectorModal" 
+                class="text-slate-400 hover:text-white transition text-lg px-1 font-bold"
+            >
+                ✕
+            </button>
+            </div>
+
+            <!-- Copyable Text Body -->
+            <div class="p-4">
+            <textarea 
+                readonly 
+                rows="8"
+                class="w-full bg-slate-950/80 border border-cyan-900/40 rounded-lg p-3 font-mono text-xs text-cyan-200 focus:outline-none focus:border-cyan-500 selection:bg-cyan-800 selection:text-white resize-y"
+                :value="inspectorModal.content"
+            ></textarea>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="flex items-center justify-end space-x-3 px-5 py-3 border-t border-cyan-900/60 bg-slate-950/40">
+            <button 
+                @click="copyInspectorContent"
+                class="px-4 py-1.5 bg-cyan-950/80 hover:bg-cyan-900 text-cyan-300 border border-cyan-700/60 rounded-lg text-xs font-mono transition flex items-center space-x-1.5 shadow-[0_0_10px_rgba(6,182,212,0.15)]"
+            >
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                <span>Copy to Clipboard</span>
+            </button>
+
+            <button 
+                @click="closeInspectorModal"
+                class="px-4 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-black font-semibold rounded-lg text-xs transition"
+            >
+                Close
+            </button>
+            </div>
+
+        </div>
+        </div>
+
+
+
 
     </div>
 

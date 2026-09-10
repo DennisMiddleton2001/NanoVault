@@ -131,6 +131,49 @@ createApp({
         isRefreshing.value = false;
       }
     };
+    
+    // Modal state for model inspector
+    const inspectorModal = ref({
+      isOpen: false,
+      title: '',
+      content: ''
+    });
+
+    const inspectWorkflow = (wf) => {
+      const details = buildModelInspectorData(wf);
+      
+      const summary = details.map(d => {
+        // Evaluate active and vault presence from state string or boolean flags
+        const hasActive = d.state.includes('A');
+        const hasVault  = d.state.includes('V');
+
+        const flagA = hasActive ? 'A' : '.';
+        const flagV = hasVault  ? 'V' : '.';
+        const tag = `[${flagA}${flagV}]`;
+
+        const folderPath = d.folder ? `models/${d.folder}/` : 'models/';
+        return `${tag} ${folderPath}${d.name}`;
+      }).join('\n');
+      
+      inspectorModal.value = {
+        isOpen: true,
+        title: `Model Dependencies: ${wf.name}`,
+        content: summary
+      };
+    };
+
+    const copyInspectorContent = async () => {
+      try {
+        await navigator.clipboard.writeText(inspectorModal.value.content);
+        addToast("Copied", "Model list copied to clipboard.");
+      } catch (err) {
+        addToast("Error", "Failed to copy to clipboard.");
+      }
+    };
+
+    const closeInspectorModal = () => {
+      inspectorModal.value.isOpen = false;
+    };
 
     const loadWorkflows = async () => {
       localStorage.setItem('sanctuary_workflow_path', workflowPath.value);
@@ -176,12 +219,6 @@ createApp({
       addToast("Enqueued", `${flag} for ${wf.name}`);
     };
 
-    const inspectWorkflow = (wf) => {
-      const details = buildModelInspectorData(wf);
-      const summary = details.map(d => `[${d.state}] ${d.name}(${d.folder})`).join('\n');
-      alert(`Model Dependencies for ${wf.name}:\n\n${summary}`);
-    };
-
     onMounted(() => {
       loadWorkflows();
     });
@@ -201,6 +238,9 @@ createApp({
       startResize,
       loadWorkflows,
       enqueueCommand,
+      inspectorModal,
+      copyInspectorContent,
+      closeInspectorModal,
       inspectWorkflow,
       queryMetalStorage
     };

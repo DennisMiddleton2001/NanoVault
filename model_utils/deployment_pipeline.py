@@ -43,11 +43,16 @@ class DeploymentPipeline:
             print(f"{self.env.ico.get("ACT",__class__)} Evaluating dependency '{model_subfolder}' '{model_name}'.")
             active_fq_path = self.vault.get_active_fq_path(model_subfolder, model_name)
             if os.path.exists(active_fq_path):
-                print(f"{self.env.ico.get("DONE",__class__)} Exists in active configuration.")
-                print(self.env.ico.sep(2))
-                response['active'].append(model_name)
-                response["successful"] += 1
-                continue
+                model_entry = self.vault.validate_file_structure(active_fq_path)
+                if (model_entry['valid']):
+                    print(f"{self.env.ico.get("DONE",__class__)} Exists in active configuration.")
+                    print(self.env.ico.sep(2))
+                    response['active'].append(model_name)
+                    response["successful"] += 1
+                    continue
+                else:
+                    print(f"{self.env.ico.get("WRN",__class__)} Exists, but corrupted in active configuration.")
+                    os.remove(active_fq_path)
 
             # Check if model exists in NanoVault
             print(f"{self.env.ico.get("ACT",__class__)} Checking NanoVault for '{model_name}'.")
