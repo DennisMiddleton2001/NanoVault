@@ -6,7 +6,7 @@ from pathlib import Path
 from .banner_gen import Banner
 from .log_icons import LogIcons
 
-env_path = os.path.join(".", "environment.json")
+env_path = os.path.join(".", "config.json")
 
 class EnvironmentConfig:
     """Manages system paths, environment states, and API credentials."""

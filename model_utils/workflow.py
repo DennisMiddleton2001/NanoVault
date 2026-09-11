@@ -65,7 +65,7 @@ class WorkflowParser:
         }
 
         # Load the workflow JSON file and add custom node type mappings.
-        model_path_map = os.path.join(".", "model_path_map.json")
+        model_path_map = os.path.join(".", "config_path_map.json")
         if os.path.exists(model_path_map):
             with open(model_path_map, 'r') as f:
                 try:
