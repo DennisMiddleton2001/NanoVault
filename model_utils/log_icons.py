@@ -6,7 +6,7 @@ class LogIcons:
             "ACT"  : "⚙️  ", # Action/Execution (e.g., moving files, downloading)
             "SRCH" : "🔍 ",  # Searching/Hunting (e.g., parsing the nodes)
             "DONE" : "⭐ ",  # Success/Completion
-            "WRN"  : "☢️ ",  # Warning (e.g., Metadata missing, but posixpath auto-routed it)
+            "WRN"  : "☢️  ",  # Warning (e.g., Metadata missing, but posixpath auto-routed it)
             "ALRT" : "⚠️ ",  # Alert (e.g., The "Oh Well" failsafe: no URL or directory found, manual review needed)
             "INFO" : "🔷 ",  # General Info (e.g., Vault status, skipping an existing file. A bit more sci-fi/terminal than a boring 'i')
             "COMM" : "📡 ",  # Communication

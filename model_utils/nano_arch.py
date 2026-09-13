@@ -23,8 +23,8 @@ from .workflow import WorkflowEnumerator
 
 class SovereignManager:
     """The universal runtime management class. Routes CLI commands to the correct pipeline."""
-    def __init__(self):
-        self.env = EnvironmentConfig()
+    def __init__(self, banner=False):
+        self.env = EnvironmentConfig(banner = banner)
         self.valid_commands = [
             '--a',
             '--as',
@@ -39,7 +39,11 @@ class SovereignManager:
             '--scan-workflow',
             '--list-workflows',
             '--query-metal-storage',
-            '--scan-all']
+            '--scan-all',
+            '--config']
+
+    def is_valid_command(self, command):
+        return True if command in self.valid_commands else False
 
     def execute(self, args_list):
         start_time = datetime.now()
@@ -49,9 +53,9 @@ class SovereignManager:
         self.command = args_list[0].lower()
         argc = len(args_list)
                 
-        if not self.command in self.valid_commands:
-            return False
-                
+        if not self.is_valid_command(self.command):
+            return {"error" : "Invalid command."}
+
         if argc > 1:
             self.target_path = args_list[1]
             clean_path = self.target_path.strip(' \t\n\r"\'')
@@ -63,8 +67,10 @@ class SovereignManager:
             if not len(model_list):
                 print(f"{self.env.ico.get('WRN',__class__)} No models found in '{clean_path}'")
                 return False
+        if self.command in ['--config']:
+            return True if self.env.print_config() else False
 
-        if self.command in ['--a']:
+        elif self.command in ['--a']:
                     print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
                     reply = DeploymentPipeline(self.env, model_list).run()
         elif self.command in ['--as']:
