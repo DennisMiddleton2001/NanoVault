@@ -32,6 +32,7 @@ class SovereignManager:
             '--i',
             '--e',
             '--s',
+            '--single-add',
             '--model',
             '--scan-active',
             '--scan-vault',
@@ -82,6 +83,13 @@ class SovereignManager:
             vault = True if '--scan-vault' in args_list else False
             print(f"{self.env.ico.get("ACT",__class__)} Starting scan for: {"NanoVault" if vault else "Active Configuration"}")
             reply = AnalyzeModelsFolder(self.env).run(vault)
+        elif self.command in ['--single-add']:
+            if argc > 3:
+                # For single install, just create a model list with one entry.
+                model_list = [
+                    {"model_name": args_list[1], 'model_path': args_list[2],'model_url' : args_list[3] if argc == 4 else ""}
+                ]
+                reply = DeploymentPipeline(self.env,model_list).run()
         elif self.command in ['--model']:
             print(f"{self.env.ico.get("INFO",__class__)} Analyzing '{clean_path}'")
             reply = LoadModel(self.env, clean_path, debug=True).analyze()
@@ -98,9 +106,20 @@ class SovereignManager:
             print(f"{self.env.ico.get("ERR",__class__)} Unrecognized command line '{self.command}'")
             reply = None
 
-        if not self.command in ['--list-workflows']:
-            end_time = datetime.now()
-            print(f"[{start_time}] {args_list}")
-            print(f"[{end_time}] Completed")
-            print(json.dumps(reply, indent=2))
+        log_folder = os.path.join(".","logs")
+        if not os.path.exists(log_folder):
+            os.makedirs(log_folder, exist_ok=True)
+        
+        logfile_path = os.path.join(log_folder, f"log_{datetime.date}")
+
+        lines = []
+        lines.append(f"[START]   : {start_time}")
+        lines.append(f"[COMMAND] : {args_list}")
+        lines.append(f"[END]     : {datetime.now()}")
+        lines.append('=' * 80)
+        lines.append(json.dumps(reply, indent=2))
+        lines.append('=' * 80)
+        with open(logfile_path, 'w+') as f:
+            f.writelines(lines)
+        
         return reply

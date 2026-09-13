@@ -139,6 +139,7 @@ class VaultManager:
 
         model_path = model_entry.get("model_path")
         model_name = model_entry.get("model_name")
+        node_type  = model_entry.get("node_type", "")
         
         print(f"{self.env.ico.get('ACT',__class__)} Validating tensor data.")
         loaded_model = self.validate_file_structure(source_fq_path)
@@ -177,7 +178,7 @@ class VaultManager:
         sidecar_entry = {
             "hash"            : dest_file_hash,
             "model_subfolder" : model_entry["model_path"],
-            "node_type" : model_entry["node_type"]
+            "node_type"       : node_type
         }
 
         if not self.write_sidecar_entry(dest_fq_path, sidecar_entry):

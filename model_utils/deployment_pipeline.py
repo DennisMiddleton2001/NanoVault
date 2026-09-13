@@ -86,7 +86,9 @@ class DeploymentPipeline:
                 elif not cache_model_entry["valid"]:
                     print(f"{self.env.ico.get("WRN",__class__)} Corrupted download found. Attempting new download.")
                     os.remove(staging_fq_path)
-            
+                elif cache_model_entry["valid"]:
+                    print(f"{self.env.ico.get("ACT",__class__)} Valid file found in download cache.")
+
                 if not cache_model_entry["valid"]:
                     if not len(model_url):
                         print(f"{self.env.ico.get("WRN",__class__)} No download url. Checking download cache folder.")
