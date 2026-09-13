@@ -7,31 +7,28 @@ const { createApp, ref, onMounted, nextTick } = Vue;
 
 createApp({
   setup() {
-    const savedPath = localStorage.getItem('sanctuary_workflow_path');
-    const workflowPath = ref(savedPath || '');
+    const workflowPath = ref('');
 
-    // If not saved yet, ask the server and populate the text box
-    if (!savedPath) {
-      fetch('/api/execute', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ command: ['get_workflow_path'] })
-      })
-      .then(res => res.json())
-      .then(data => {
-        if (data && data.retval) {
-          workflowPath.value = data.retval;
-          localStorage.setItem('sanctuary_workflow_path', data.retval);
-        }
-      })
-      .catch(err => console.error('Could not load workflow path:', err));
-    }
-
-    // Keep storage updated if edited in the UI
+    // Define the update function first
     function updateWorkflowPath(newPath) {
       workflowPath.value = newPath;
       localStorage.setItem('sanctuary_workflow_path', newPath);
     }
+
+    // Unconditionally fetch the path on load
+    fetch('/api/config/workflow-path', { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === "SUCCESS") {
+          updateWorkflowPath(data.workflow_path);
+          
+          // Automatically trigger the list refresh
+          // (This works perfectly because the async wait allows setup() to finish defining it below)
+          loadWorkflows(); 
+        }
+      })
+      .catch(err => console.error('Fetch failed:', err));
+    
 
     // ... rest of your setup logic remains unchanged
     const workflows = ref([]);
@@ -199,7 +196,7 @@ createApp({
     };
 
     const loadWorkflows = async () => {
-      localStorage.setItem('sanctuary_workflow_path', workflowPath.value);
+      //localStorage.setItem('sanctuary_workflow_path', workflowPath.value);
       try {
         const data = await fetchWorkflows(workflowPath.value);
         if (data.status === 'SUCCESS') {

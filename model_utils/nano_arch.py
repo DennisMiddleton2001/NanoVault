@@ -106,20 +106,21 @@ class SovereignManager:
             print(f"{self.env.ico.get("ERR",__class__)} Unrecognized command line '{self.command}'")
             reply = None
 
+        lines = []
+        lines.append(f"[START]   : {start_time}\n")
+        lines.append(f"[COMMAND] : {args_list}\n")
+        lines.append(f"[END]     : {datetime.now()}\n")
+        lines.append('=' * 80 + "\n")
+        lines.append(json.dumps(reply, indent=2) + "\n")
+        lines.append('=' * 80 + '\n')
+
         log_folder = os.path.join(".","logs")
         if not os.path.exists(log_folder):
             os.makedirs(log_folder, exist_ok=True)
-        
-        logfile_path = os.path.join(log_folder, f"log_{datetime.date}")
 
-        lines = []
-        lines.append(f"[START]   : {start_time}")
-        lines.append(f"[COMMAND] : {args_list}")
-        lines.append(f"[END]     : {datetime.now()}")
-        lines.append('=' * 80)
-        lines.append(json.dumps(reply, indent=2))
-        lines.append('=' * 80)
-        with open(logfile_path, 'w+') as f:
-            f.writelines(lines)
+        logfile_path = os.path.join(log_folder, f"{datetime.now().strftime('%Y%m%d')}.log")
+        with open(logfile_path, 'a') as f:
+            for l in lines:
+                f.write(l)
         
         return reply

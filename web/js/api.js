@@ -43,3 +43,17 @@ export async function fetchMetalStorage() {
 export async function runPipeline(flag, fqPath) {
   return await executeCommand([flag, fqPath]);
 }
+
+async function loadComfyPath() {
+    try {
+        const response = await fetch('/api/config/workflow-path');
+        const data = await response.json();
+        
+        if (data.status === "SUCCESS") {
+            // Swap 'workflow-input' with the actual ID of your HTML element
+            document.getElementById('workflow-input').value = data.workflow_path;
+        }
+    } catch (error) {
+        console.error("Failed to load workflow path:", error);
+    }
+}
