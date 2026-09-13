@@ -8,34 +8,35 @@ from model_utils.nano_arch import SovereignManager
 workspace_folder = "/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/"
 #region USAGE
 def print_usage():
-
-    print(f"***IMPORTANT*** Items marked with '*' are features which are included in the premium")
-    print(f"   edition of NanoArch with NanoVault.  Visit us at 'https://www.amnanotech.com' and")
-    print(f"   help us keep the lights on and the tensor cores humming. Thanks in advance!\n")
-    print(f"USAGE: '{sys.argv[0]}'")
-    print("WORKFLOW TOOLS")
-    print("  --a  :  Add workflow models to ComfyUI workspace.")
-    print("  --t  :  Free workflow models from ComfyUI workspace and ingest to NanoVault.")
-    print("  --i  :  Ingest workflow models to NanoVault.")
-    print("  --e  :  Evict!!! Free workflow models from ComfyUI workspace ***AND*** NanoVault.")
+    print(f"****DANGER!!!  POWER USER ZONE*****")
+    print(f"")
+    print(f"Visit us at https://www.amnanotech.com")
+    print(f"")
+    print(f"USAGE: {sys.argv[0]}")
+    print(f"")
+    print("WORKFLOW TOOLS - These affect the specified workflow only")
+    print("  --list-workflows : Creates a json report of all dependencies in a folder")
+    print("  --a  :  Add models: Download=>Vault=>Deploy")
+    print("  --as :  Add models: Download=>Deploy - good for staging spot instances where vault isn't needed")
+    print("  --t  :  Trim models: VaultActive=>DeleteActive")
+    print("  --i  :  Ingest models: VaultActive (no delete)")
+    print("  --e  :  Evict! DeleteActive, DeleteVaulted(unless excluded in config.json)")
     print(f"")
     print("MODEL FILE TOOLS")
+    print("  --model       :  Print debug info for a single model file (output is large)")
     print("  --scan-active :  Health check .safetensors in ComfyUI/models folders.")
-    print("  --model       :  Print debug info for a single model file.")
     print("  --scan-vault  :  Health check .safetensors in NanoVault.")
-    print("  --st          :  Trim single model from ComfyUI workspace and ingest to NanoVault.")
-    print("  --sf          :  Fetch single model from URL, deploy, and ingest to NanoVault.")
+    print("  --single-add  :  Download, vault, and install a single model")
+    print("  --single-spot :  Download and install a single model (only to active).")
     print(f"")
-    print("VAULT MANAGEMENT")
-    print("  --r           :  Rebuild NanoVault HASH values. Does not validate tensor structure.")
-    print("  --cleanup     :  Delete all active files not found in the NanoVault.")
-    print("")
     print("  EXAMPLES:")
+    print("         --list_workflows '../ComfyUI/user/default/workflows/'")
     print("         --a '/path/to/comfyworkflow.json'")
     print("         --t '/path/to/comfyworkflow.json'")
     print("         --scan-active")
     print("         --model '/path/to/vae_volcano.safetensors'")
-    print("         --si 'vae' 'vae_volcano.safetensors'")
+    print("         --single-add 'filename.safetensors' 'models_subfolder' 'https://url.com'")
+    print("         --single-spot 'filename.safetensors' 'models_subfolder' 'https://url.com'")
     print("         --st 'vae' 'vae_volcano.safetensors'")
     print("         --sf 'https://some.url.com/path/vae_volcano.safetensors' 'vae' 'vae_volcano.safetensors'")
     print("         --cleanup")
@@ -44,16 +45,13 @@ def print_usage():
 
 
 argc = len(sys.argv)
+
 if argc==1:
     print_usage()
     sys.exit(1)
-elif argc==2:
-    args = [sys.argv[1]]
-else:
-    args = [sys.argv[1], sys.argv[2]]
+
+args = sys.argv
+del args[0]
 
 results = SovereignManager().execute(args)
 
-print(f"Input:\n{args}\n")
-print(f"Output:\n")
-print(json.dumps(results, indent=2))
