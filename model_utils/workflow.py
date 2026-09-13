@@ -111,7 +111,9 @@ class WorkflowParser:
             model.update({"active_size" : active_size})
             model.update({"vault_size"  : vault_size})
         if not len(model_list):
-            print("HALT!!!")
+            # This workflow has no models.abs
+            # It's possible, but let's keep an eye on it.
+            # print(f"{self.env.ico.get("WRN")}No models found in '{self.fq_path}' - report if this is a bug.")
         return model_list
 
     def get_workflow_model_list(self):

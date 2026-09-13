@@ -12,7 +12,9 @@ def print_usage():
     print(f"")
     print(f"Visit us at https://www.amnanotech.com")
     print(f"")
-    print(f"USAGE: {sys.argv[0]}")
+    print(f"USAGE:")
+    print(f"")
+    print(f" --config : Print Nanovault configuration and show errors.")
     print(f"")
     print("WORKFLOW TOOLS - These affect the specified workflow only")
     print("  --list-workflows : Creates a json report of all dependencies in a folder")
@@ -40,18 +42,18 @@ def print_usage():
     print("         --st 'vae' 'vae_volcano.safetensors'")
     print("         --sf 'https://some.url.com/path/vae_volcano.safetensors' 'vae' 'vae_volcano.safetensors'")
     print("         --cleanup")
-    sys.exit(1)
+    
 #endregion
 
 
-argc = len(sys.argv)
-
-if argc==1:
-    print_usage()
-    sys.exit(1)
-
 args = sys.argv
 del args[0]
+argc = len(sys.argv)
 
-results = SovereignManager().execute(args)
+mgr = SovereignManager(banner=True)
+if len(args) and mgr.is_valid_command(args[0]):
+    results = mgr.execute(args)
+else:
+    print_usage()
+
 

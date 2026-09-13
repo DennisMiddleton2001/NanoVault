@@ -10,13 +10,12 @@ env_path = os.path.join(".", "config.json")
 
 class EnvironmentConfig:
     """Manages system paths, environment states, and API credentials."""
-    def __init__(self, env_path = env_path, show_banner=True, show_config=False):
+    def __init__(self, env_path = env_path, banner=False):
         config_error = False
-        self.show_config = show_config
         self.ico = LogIcons()
         self.env_path = env_path
         
-        if show_banner:
+        if banner:
             Banner()
 
         json_path = os.path.expanduser(os.path.join(".",env_path))
@@ -34,8 +33,7 @@ class EnvironmentConfig:
             tokens = env.get("tokens")
             self.hf_token = tokens.get("hf_token")
             self.civitai_token = tokens.get("civitai_token")
-            persist = env.get('exclude_from_purge')
-            self.immutable = persist
+            self.immutable = env.get('exclude_from_purge')
 
         except Exception as e:
             #if something is wrong with JSON, point out the line number.
@@ -45,15 +43,17 @@ class EnvironmentConfig:
         # Automatically create the directory (and any necessary parent directories) if it's missing
         pc = Path(self.staging_cache)
         pv = Path(self.vault_dir)
-        
-        if self.show_config:
-            self.print_config()
-
 
     def print_config(self):
         print(f"NanoArch Configuration")
         print(self.ico.sep(0))
         print(f"CONFIG : '{self.env_path}'\n")
+        config_error = False
+        if os.path.exists(self.comfy_ui_root):
+            print(f"{self.ico.get('FOLD')} ComfyUI    : {self.comfy_ui_root}")
+        else:
+            print(f"{self.ico.get('ERR')} ComfyUI     : {self.comfy_ui_root} - does not exist.")
+            config_error = True
 
         if os.path.exists(self.active_root):
             print(f"{self.ico.get('FOLD')} Models    : {self.active_root}")
@@ -82,13 +82,16 @@ class EnvironmentConfig:
 
         print()
 
-        if len(persist):
+        if len(self.immutable):
             print(f"{self.ico.get('LIGHT')} Locked From Purge")
             print(self.ico.sep(3, 40))
-            for m in persist:
+            for m in self.immutable:
                 print(f"{self.ico.get('LOCK')}    {m}")
 
         print(self.ico.sep(0))
         if config_error:
             print(f"{self.ico.get('ERR')} Unable to continue - verify paths.")
+            return False
+
+        return True
 
