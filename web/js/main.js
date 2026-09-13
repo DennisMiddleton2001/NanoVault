@@ -8,9 +8,32 @@ const { createApp, ref, onMounted, nextTick } = Vue;
 createApp({
   setup() {
     const savedPath = localStorage.getItem('sanctuary_workflow_path');
-    const workflowPath = ref(savedPath || '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/');
-    localStorage.setItem('sanctuary_workflow_path', workflowPath.value);
+    const workflowPath = ref(savedPath || '');
 
+    // If not saved yet, ask the server and populate the text box
+    if (!savedPath) {
+      fetch('/api/execute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command: ['get_workflow_path'] })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.retval) {
+          workflowPath.value = data.retval;
+          localStorage.setItem('sanctuary_workflow_path', data.retval);
+        }
+      })
+      .catch(err => console.error('Could not load workflow path:', err));
+    }
+
+    // Keep storage updated if edited in the UI
+    function updateWorkflowPath(newPath) {
+      workflowPath.value = newPath;
+      localStorage.setItem('sanctuary_workflow_path', newPath);
+    }
+
+    // ... rest of your setup logic remains unchanged
     const workflows = ref([]);
     const activeSize = ref('0 B');
     const vaultSize = ref('0 B');

@@ -27,19 +27,20 @@ async def load_control_center():
     with open(ui_path, "r", encoding="utf-8") as f:
         return f.read()
 
-@app.post("/api/save_env")
-async def save_environment(request: Request):
+@app.get("/api/config/workflow-path")
+async def get_workflow_path():
+    config_path = os.path.join(BASE_DIR, "config.json")
+    if not os.path.exists(config_path):
+        return JSONResponse(status_code=404, content={"status": "ERROR", "message": "config.json not found"})
     try:
-        payload = await request.json()
-        env_path = os.path.join(BASE_DIR, "model_utils", "environment.json")
-        os.makedirs(os.path.dirname(env_path), exist_ok=True)
-        
-        with open(env_path, "w", encoding="utf-8") as f:
-            json.dump(payload, f, indent=4)
+        with open(config_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
             
-        return {"status": "SUCCESS", "message": "Environment configuration saved."}
+        comfy_root = data.get("paths", {}).get("comfy_ui_root", "").rstrip("/\\")
+        full_path = f"{comfy_root}/user/default/workflows/"
+        return {"status": "SUCCESS", "workflow_path": full_path}
     except Exception as e:
-        return {"status": "ERROR", "message": str(e)}
+        return JSONResponse(status_code=500, content={"status": "ERROR", "message": str(e)})
 
 @app.post("/api/execute")
 async def execute_command(request: Request):
