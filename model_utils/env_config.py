@@ -25,10 +25,11 @@ class EnvironmentConfig:
                 env = json.load(f)
             
             paths = env.get("paths")
-            self.active_root   = os.path.expanduser(os.path.join('.', paths.get('active_root')))
-            self.staging_cache = os.path.expanduser(os.path.join('.', paths.get('staging_cache')))
-            self.vault_dir     = os.path.expanduser(os.path.join('.', paths.get('vault_dir')))
-            self.fast_hash = env.get("fast_hash")
+            self.comfy_ui_root = os.path.expanduser(paths.get('comfy_ui_root'))
+            self.active_root   = os.path.expanduser(os.path.join(self.comfy_ui_root, 'models'))
+            self.staging_cache = os.path.expanduser(paths.get('staging_cache'))
+            self.vault_dir     = os.path.expanduser(paths.get('vault_dir'))
+            self.fast_hash = env.get('fast_hash')
             self.sidecar_ext = ".xxh128" if self.fast_hash else ".sha256"
             tokens = env.get("tokens")
             self.hf_token = tokens.get("hf_token")
