@@ -129,9 +129,9 @@ class SovereignManager:
             lines.append(f"[START]   : {start_time}\n")
             lines.append(f"[COMMAND] : {args_list}\n")
             lines.append(f"[END]     : {datetime.now()}\n")
-            lines.append('=' * 80 + "\n")
+            lines.append('=' * 40 + "\n")
             lines.append(json.dumps(reply, indent=2) + "\n")
-            lines.append('=' * 80 + '\n')
+            lines.append('=' * 40 + '\n')
 
             log_folder = os.path.join(".","logs")
             if not os.path.exists(log_folder):
