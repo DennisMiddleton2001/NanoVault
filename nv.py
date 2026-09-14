@@ -53,6 +53,7 @@ argc = len(sys.argv)
 mgr = SovereignManager(banner=True)
 if len(args) and mgr.is_valid_command(args[0]):
     results = mgr.execute(args)
+    print(json.dumps(results, indent = 2))
 else:
     print_usage()
 
