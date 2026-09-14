@@ -54,7 +54,7 @@ class SovereignManager:
         argc = len(args_list)
                 
         if not self.is_valid_command(self.command):
-            return {"error" : "Invalid command."}
+            return {"message" : "Invalid command."}
 
         if argc > 1:
             self.target_path = args_list[1]
@@ -66,10 +66,21 @@ class SovereignManager:
             model_list = WorkflowParser(self.env, clean_path).get_required_models()
             if not len(model_list):
                 print(f"{self.env.ico.get('WRN',__class__)} No models found in '{clean_path}'")
-                return False
+                reply = {
+                    "command" : "Parse Workflow",
+                    "message" : f"No models found in '{clean_path}'"
+                }
+                return reply
+        
         if self.command in ['--config']:
-            return True if self.env.print_config() else False
-
+            if self.env.print_config():
+                message = "Valid configuration found."
+            else:
+                message = f"NanoVault configuration is invalid. Check '{self.env.env_path}' file."
+            reply = {
+                "command"    : "CheckAppConfiguration",
+                "message"    : message
+                }
         elif self.command in ['--a']:
                     print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
                     reply = DeploymentPipeline(self.env, model_list).run()
@@ -111,22 +122,25 @@ class SovereignManager:
         else:
             print(f"{self.env.ico.get("ERR",__class__)} Unrecognized command line '{self.command}'")
             reply = None
+        
+        # Don't bloat the log with these functions.
+        if not self.command in ["--list-workflows", "--query-metal-storage"]:
+            lines = []
+            lines.append(f"[START]   : {start_time}\n")
+            lines.append(f"[COMMAND] : {args_list}\n")
+            lines.append(f"[END]     : {datetime.now()}\n")
+            lines.append('=' * 80 + "\n")
+            lines.append(json.dumps(reply, indent=2) + "\n")
+            lines.append('=' * 80 + '\n')
 
-        lines = []
-        lines.append(f"[START]   : {start_time}\n")
-        lines.append(f"[COMMAND] : {args_list}\n")
-        lines.append(f"[END]     : {datetime.now()}\n")
-        lines.append('=' * 80 + "\n")
-        lines.append(json.dumps(reply, indent=2) + "\n")
-        lines.append('=' * 80 + '\n')
+            log_folder = os.path.join(".","logs")
+            if not os.path.exists(log_folder):
+                os.makedirs(log_folder, exist_ok=True)
 
-        log_folder = os.path.join(".","logs")
-        if not os.path.exists(log_folder):
-            os.makedirs(log_folder, exist_ok=True)
 
-        logfile_path = os.path.join(log_folder, f"{datetime.now().strftime('%Y%m%d')}.log")
-        with open(logfile_path, 'a') as f:
-            for l in lines:
-                f.write(l)
+            logfile_path = os.path.join(log_folder, f"{datetime.now().strftime('%Y%m%d')}.log")
+            with open(logfile_path, 'a') as f:
+                for l in lines:
+                    f.write(l)
         
         return reply

@@ -19,7 +19,7 @@ class EnvironmentConfig:
             Banner()
 
         json_path = os.path.expanduser(os.path.join(".",env_path))
-        try:        
+        try:
             with open(json_path) as f:
                 env = json.load(f)
             
@@ -38,7 +38,6 @@ class EnvironmentConfig:
         except Exception as e:
             #if something is wrong with JSON, point out the line number.
             print(f"{self.ico.get('ERR')} - ERROR: {self.env_path}\n{e}")
-            sys.exit(1)
 
         # Automatically create the directory (and any necessary parent directories) if it's missing
         pc = Path(self.staging_cache)
@@ -78,10 +77,8 @@ class EnvironmentConfig:
         print("")
         print(f"{self.ico.get('KEY')} HASH_TYPE      : {hash_type}")                        
         print(f"{self.ico.get('KEY')} HF_TOKEN       : {self.hf_token[:10]}...")
-        print(f"{self.ico.get('KEY')} CIVITAI_TOKEN  : {self.civitai_token[:10]}...")
-
-        print()
-
+        print(f"{self.ico.get('KEY')} CIVITAI_TOKEN  : {self.civitai_token[:10]}...\n")
+        
         if len(self.immutable):
             print(f"{self.ico.get('LIGHT')} Locked From Purge")
             print(self.ico.sep(3, 40))
@@ -90,7 +87,7 @@ class EnvironmentConfig:
 
         print(self.ico.sep(0))
         if config_error:
-            print(f"{self.ico.get('ERR')} Unable to continue - verify paths.")
+            print(f"{self.ico.get('ERR')} Unable to continue - check {self.env_path}.")
             return False
 
         return True

@@ -8,9 +8,9 @@
             "name": "Python Debugger: Current File",
             "type": "debugpy",
             "request": "launch",
-            "args": ["--config"],
-            "program": "nv.py",
-//            "program": "main.py",
+//            "args": ["--config"],
+//            "program": "nv.py",
+            "program": "main.py",
             "console": "integratedTerminal"
         }
     ]
