@@ -8,8 +8,8 @@
     },
     "fast_hash": true,
     "tokens": {
-        "hf_token": "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",
-        "civitai_token": "ac62720a98e63885c6c406328bd41991"
+        "hf_token": "",
+        "civitai_token": ""
     },
     "exclude_from_purge": [
         "gemma4_e2b_it_bf16.safetensors",
