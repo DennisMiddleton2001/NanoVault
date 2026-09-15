@@ -30,9 +30,22 @@ class EnvironmentConfig:
             self.vault_dir     = os.path.expanduser(paths.get('vault_dir'))
             self.fast_hash = env.get('fast_hash')
             self.sidecar_ext = ".xxh128" if self.fast_hash else ".sha256"
-            tokens = env.get("tokens")
-            self.hf_token = tokens.get("hf_token")
-            self.civitai_token = tokens.get("civitai_token")
+
+            tokens = env.get("tokens") or {}
+
+            # Check JSON first; if missing, empty string, or None, fall back to environment variables
+            self.hf_token = (
+                tokens.get("hf_token")
+                or os.environ.get("HF_TOKEN")
+                or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+            )
+
+            self.civitai_token = (
+                tokens.get("civitai_token")
+                or os.environ.get("CIVITAI_TOKEN")
+                or os.environ.get("CIVITAI_API_KEY")
+            )
+
             self.immutable = env.get('exclude_from_purge')
 
         except Exception as e:
