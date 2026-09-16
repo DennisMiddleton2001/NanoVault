@@ -1,3 +1,4 @@
 uvicorn==0.52.1
+fastapi
 wcwidth==0.8.2
 xxhash==3.8.1
