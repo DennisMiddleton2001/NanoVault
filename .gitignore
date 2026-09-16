@@ -1,6 +1,6 @@
 # Virtual Environments
 venv/
-.venv/launch.json
+.venv/
 .vscode/
 env/
 logs/
