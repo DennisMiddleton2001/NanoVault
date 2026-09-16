@@ -1,11 +1,10 @@
 # Virtual Environments
 venv/
 .venv/
+.vscode/
 env/
 logs/
+
 __pycache__/*
 *.pyc
-.vscode/*
-logs/*
-Workflows/*
-model_utils/workflows/*
+
