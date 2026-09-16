@@ -4,7 +4,7 @@ import sys
 UTILITY: Converts flat json into indented format for readability.  To convert indented
 json back to flat, change indent to zero.
 '''
-indent = 2
+indent = 4
 
 with open(sys.argv[1], 'r') as f:
     data = json.load(f)
