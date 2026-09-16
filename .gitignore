@@ -5,7 +5,7 @@ env/
 logs/
 __pycache__/*
 *.pyc
-.vscode/
-logs/
+.vscode/*
+logs/*
 Workflows/*
 model_utils/workflows/*
