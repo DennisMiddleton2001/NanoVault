@@ -204,7 +204,7 @@ class WorkflowParser:
                     if not model_path:
                         # Safely call self.NODE_TYPE_TO_FOLDER just in case it's missing
                         folder_map = getattr(self, 'NODE_TYPE_TO_FOLDER', {})
-                        model_path = folder_map.get(node_type, "//default to blow_$hi723n_up\\\\")
+                        model_path = folder_map.get(node_type, "")
 
                     models_found.append({
                         "node_type": node_type,
