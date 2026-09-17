@@ -6,11 +6,9 @@ from pathlib import Path
 from .banner_gen import Banner
 from .log_icons import LogIcons
 
-env_path = os.path.join(".", "config.json")
-
 class EnvironmentConfig:
     """Manages system paths, environment states, and API credentials."""
-    def __init__(self, env_path = env_path, banner=False):
+    def __init__(self, env_path = "config.json", banner=False):
         config_error = False
         self.ico = LogIcons()
         self.env_path = env_path
@@ -20,9 +18,8 @@ class EnvironmentConfig:
 
         json_path = os.path.expanduser(os.path.join(".",env_path))
         try:
-            with open(json_path) as f:
-                env = json.load(f)
-            
+            self.env_path = env_path
+            env = self.get_config(self.env_path)
             paths = env.get("paths")
             self.comfy_ui_root = os.path.expanduser(paths.get('comfy_ui_root'))
             self.active_root   = os.path.expanduser(os.path.join(self.comfy_ui_root, 'models'))
@@ -55,6 +52,45 @@ class EnvironmentConfig:
         # Automatically create the directory (and any necessary parent directories) if it's missing
         pc = Path(self.staging_cache)
         pv = Path(self.vault_dir)
+
+    def get_config(self, env_path=None):
+        if env_path is not None:
+            self.env_path = env_path
+        with open(self.env_path, "r", encoding="utf-8") as f:
+            env = json.load(f)
+        return env
+
+    def set_config(
+        self,
+        comfy_root,
+        vault_dir,
+        staging_cache,
+        fast_hash=True,
+        tokens=None,
+        exclude_from_purge=None,
+    ):
+        if tokens is None:
+            tokens = {}
+        if exclude_from_purge is None:
+            exclude_from_purge = []
+
+        config = {
+            "application": "NanoVault",
+            "version": "1.1.0",
+            "paths": {
+                "comfy_ui_root": comfy_root,
+                "vault_dir": vault_dir,
+                "staging_cache": staging_cache,
+            },
+            "fast_hash": fast_hash,
+            "tokens": tokens,
+            "exclude_from_purge": exclude_from_purge,
+        }
+
+        with open(self.env_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
+
+        return config
 
     def print_config(self):
         print(f"NanoArch Configuration")
