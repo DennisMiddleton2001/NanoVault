@@ -77,19 +77,20 @@ class VaultManager:
 
     def robust_copy_and_verify(self, src_path, dst_path, chunk_size=8388608):
         """
-        Streams src to dst while computing the source hash in-flight.
-        Flushes to disk via fsync, then executes a separate read-back verification 
-        pass on the destination to detect storage/NAS corruption.
+        Streams src to a temporary destination while computing the source hash in-flight.
+        Flushes to disk via fsync, executes a separate read-back verification pass, 
+        and renames the .tmp file to the final destination upon success.
         Returns: (success: bool, source_digest: str, dest_digest: str)
         """
         src_hasher = self._get_hasher()
+        tmp_dst_path = f"{dst_path}.tmp"
 
         # Ensure destination directory exists
         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
 
-        # 1. Stream copy and calculate source hash concurrently
+        # 1. Stream copy to .tmp and calculate source hash concurrently
         try:
-            with open(src_path, 'rb') as fsrc, open(dst_path, 'wb') as fdst:
+            with open(src_path, 'rb') as fsrc, open(tmp_dst_path, 'wb') as fdst:
                 while chunk := fsrc.read(chunk_size):
                     src_hasher.update(chunk)
                     fdst.write(chunk)
@@ -97,26 +98,26 @@ class VaultManager:
                 os.fsync(fdst.fileno())
         except Exception as e:
             print(f"{self.env.ico.get('ERR', __class__)} Transfer failed during write: {e}")
-            if os.path.exists(dst_path):
+            if os.path.exists(tmp_dst_path):
                 try:
-                    os.remove(dst_path)
+                    os.remove(tmp_dst_path)
                 except Exception:
                     pass
             return False, None, None
 
         source_digest = src_hasher.hexdigest()
 
-        # 2. Independent read-back pass over destination to verify physical media
+        # 2. Independent read-back pass over .tmp destination to verify physical media
         dst_hasher = self._get_hasher()
         try:
-            with open(dst_path, 'rb') as fdst:
+            with open(tmp_dst_path, 'rb') as fdst:
                 while chunk := fdst.read(chunk_size):
                     dst_hasher.update(chunk)
         except Exception as e:
             print(f"{self.env.ico.get('ERR', __class__)} Transfer failed during readback: {e}")
-            if os.path.exists(dst_path):
+            if os.path.exists(tmp_dst_path):
                 try:
-                    os.remove(dst_path)
+                    os.remove(tmp_dst_path)
                 except Exception:
                     pass
             return False, source_digest, None
@@ -124,11 +125,27 @@ class VaultManager:
         dest_digest = dst_hasher.hexdigest()
         is_valid = (source_digest == dest_digest)
 
-        if not is_valid and os.path.exists(dst_path):
+        # 3. Rename on success, purge on failure
+        if is_valid:
             try:
-                os.remove(dst_path)
-            except Exception:
-                pass
+                # Remove existing file if replacing an active/corrupted file
+                if os.path.exists(dst_path):
+                    os.remove(dst_path)
+                os.rename(tmp_dst_path, dst_path)
+            except Exception as e:
+                print(f"{self.env.ico.get('ERR', __class__)} Failed to finalize file rename: {e}")
+                if os.path.exists(tmp_dst_path):
+                    try:
+                        os.remove(tmp_dst_path)
+                    except Exception:
+                        pass
+                return False, source_digest, dest_digest
+        else:
+            if os.path.exists(tmp_dst_path):
+                try:
+                    os.remove(tmp_dst_path)
+                except Exception:
+                    pass
 
         return is_valid, source_digest, dest_digest
 
