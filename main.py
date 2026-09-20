@@ -70,10 +70,11 @@ async def execute_command(request: Request):
 
 if __name__ == "__main__":
     port = 8000
-    
+    host_id = "127.0.0.1"
+
     try:
-        print(f"[SYSTEM INIT] Sovereign Gateway online. Binding to 0.0.0.0:{port}")
-        uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False,)
+        print(f"[SYSTEM INIT] Sovereign Gateway online. Binding to {host_id}:{port}")
+        uvicorn.run("main:app", host=host_id , port=port, reload=False,)
     except:
             sys.exit(0)
 
