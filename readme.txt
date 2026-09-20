@@ -4,6 +4,11 @@ Before you begin, please refer to the technical_specifications.txt file for Nano
 
 1. Prerequisites
 
+    Clone NanoVault from the parent directory of ComfyUI and cd to the NanoVault folder:
+    
+        gh repo clone DennisMiddleton2001/NanoVault
+        cd NanoVault
+
     Windows Setup (64-bit)
 
         Download and run the Python 3.12.10 installer:
@@ -37,15 +42,16 @@ Before you begin, please refer to the technical_specifications.txt file for Nano
 
 2. Installation & Environment Configuration
 
-    Confirm your terminal prompt displays the active (venv) prefix.
+    Confirm your terminal prompt displays the active (venv) prefix if not, run the 
+    activation command for your OS type.
 
     Install the required dependencies:
 
         Bash
         ---------------------------------------------
         pip install -r requirements.txt
-
-    Open config.json in a text editor to set your baseline directory routes (vault_storage_dir, comfy_root, and download_cache_dir).
+    
+    Open config.json in a text editor to set your baseline directory routes (vault_dir, comfyui_root, and staging_cache).
 
     (Optional) To authenticate model downloads from restricted repositories, set your Hugging Face or Civitai tokens directly via environment variables rather than hardcoding them into the config:
 
@@ -57,12 +63,12 @@ Before you begin, please refer to the technical_specifications.txt file for Nano
 
 3. Verification & Server Launch
 
-    Edit and create the paths in config.json --OR-- run config_ui.py (optional GUI). If you use the GUI, remember to
-    click "Apply" to save the updated config.json.
+    Edit and create the paths in config.json --OR-- run "python config_ui.py" (optional GUI). 
+    IMPORTANT:  If you use the GUI, remember to click "Apply" to save update config.json.
 
     Run the CLI configuration check to sanity check directory pathing and JSON integrity before starting the server:
 
-        Bash
+        Bash / CMD
         ---------------------------------------------
         python nv.py --config
         Scroll through the output.  If you see red stop sign icons, double-check directory permissions
