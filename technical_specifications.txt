@@ -1,0 +1,267 @@
+NanoVault Technical Description
+=================================
+NanoVault is a robust model/workflow manager that allows single click installation and validation of
+ComfyUI workflow models.  To get started, NanoVault has two GUI interfaces: 1. config_ui.py, 2. main.py (API server).  
+
+config_ui.py
+------------
+The config interface (optional). This allows the user to set up the application options in config.json.
+It has a rich interface that displays all installed model files in a sortable list.  To protect specific
+models from accidental deletion, the user can optionally click the lock icon for individual files.  
+Once the configuration is saved, the protected models are stored in config.json along with the application
+settings. Tokens can be specified in the UI, but if left blank, the environment variables HF_TOKEN, and
+CIVITAI_TOKEN will be used. 
+
+    ```config.json```
+    {
+      "application": "NanoVault",
+      "version": "1.1.0",
+      "paths": {
+        "comfy_ui_root": "/home/darth-tedious/.sovereign-ai/ComfyUI",
+        "vault_dir": "/run/media/darth-tedious/5eb65f8c-6e86-46ab-beaa-c2bec31b620c/NanoVault",
+        "staging_cache": "/mnt/nvme-storage/download_cache"
+      },
+      "fast_hash": true,
+      "tokens": {},
+      "exclude_from_purge": [
+        "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+        "krea2_turbo_fp8_scaled.safetensors",
+      ]
+    }
+
+    NOTE:  To perform a quick sanity check of config.json, run "python nv.py --config".
+
+main.py - The API Server / Web UI
+---------------------------------
+Lauches the server which hosts a web based UI that can be accessed via port 8000.  
+Once launched, simply CTRL+click the url shown in the server terminal.
+
+BASIC OPERATIONS
+================
+The web server (main.py) provides a browser interface (http://127.0.0.1:8000) for quick and easy access to 
+common features, but all commands can also be issued via the nv.py command line or through
+curl(the server process main.py must be running).
+
+    GENERAL
+
+    --config : Print Nanovault configuration and show errors.
+    
+    WORKFLOW COMMANDS - These affect the specified workflow only
+      --list-workflows : Creates a json report of all dependencies in a folder
+      --a  :  Add models: Download=>Vault=>Deploy
+      --as :  Add models: Download=>Deploy - good for staging spot instances where vault isn't needed
+      --t  :  Trim models: VaultActive=>DeleteActive
+      --i  :  Ingest models: VaultActive (no delete)
+      --e  :  Evict! DeleteActive, DeleteVaulted(unless excluded in config.json)
+
+Download Process Overview
+=========================
+NanoVault ensures that the files downloaded from the internet are a valid authoritative source.
+The following methods are used to confirm validity of downloaded files.
+
+    1. Tensor Headers are read.
+    2. The tensors are validated.  If a structure is not valid, it's probably a text file
+       containing a download error message.  Invalid files are automatically deleted.
+    3. NanoVault crawls through the tensors and ensures that the offsets make sense.  If it 
+       tries to walk past the end of file, then it's likely to be an incomplete download(valid but truncated).
+    4. If a file is flagged as truncated, NanoVault will attempt to complete the download.
+    5. If the download fails, it's usually a server availability issue, so the file remains in cache
+       so the download can be retried at a later time.
+    6. IMPORTANT!! If the user chooses to manually download a file via web browser, simply download it to the
+       staging_cache folder and NanoVault will perform all checks and honor the file as a completed 
+       download during deployment.  However, if the manually downloaded file is corrupt, it will be deleted.
+
+Vault Specifications
+====================
+Vault storage should be on a separate disk from your OS.  The goal is to treat the vault as a
+reliable, persistent, authoritative source of models.
+
+    Valt Disk Recommendations:
+      1. USB v.4 external SATA.
+      2. Local NAS storage.
+      3. Whatever large inexpensive storage you have.
+
+    Nanovault has a 5 step pathway to ingest files into the vault:
+
+      1. The file's tensor structure is validated.
+      2. If valid, compute the hash of the source file.
+      3. Perform a robust copy(with readback hashing) to ensure the entire file is written to the vault.
+      4. Validate vaulted file's hash against original file hash.
+      5. Create a sidecar file containing the hash and write it to the NanoVault folder(see exammple below).
+
+        ```birefnet.safetensors.xxh128```
+        {
+            "hash": "4724a411e275159ab90473d5cda42e96",
+            "model_subfolder": "background_removal",
+            "node_type": "LoadBackgroundRemovalModel"
+        }
+
+        NOTE:  The model_subfolder and node_type are overridden by workflow during deployment, but the values are
+               reliable unless the file is ingested manually via "--single-add".
+
+Server API Logs
+===============
+    Log files are stored in the "logs" folder and indexed by date.  
+    The log format mirrors the JSON returned by the NanoVault server API, but provides timestamp information.
+
+    EXAMPLE 1: In this case, the command issued was "--as" (add spot) for video_minimax_h3_i2v. 
+             Spot installs are recommended for a "borrowed" spot instance and you're connected via ssh.
+             Most cloud instances have a single NVMe which will likely be wiped when you're done with it.
+             For this reason, we bypass the vault to prevent duplication of files.
+             In this case, you can see that the authoritative source was "download" and the operation completed
+             in approximately 5 hours 10 minutes (yes, this was a test run on consumer grade hardware using WiFi).
+
+        ========================================
+        ((venv) ) darth-tedious@darkmatter:~/.sovereign-ai/NanoVault$ cat logs/20260920.log 
+        [START]   : 2026-09-20 02:42:23.996612
+        [COMMAND] : ['--as', '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/video_minimax_h3_i2v.json']
+        [END]     : 2026-09-20 06:54:58.515169
+        ========================================
+        {
+          "command": "SpotDeploymentPipeline",
+          "attempted": 5,
+          "successful": 5,
+          "active": [],
+          "download": [
+            "minimax_h3_video_vae_fp16.safetensors",
+            "minimax_h3_audio_vae_fp32.safetensors",
+            "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+            "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+            "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
+          ],
+          "vault": [],
+          "failed": [],
+          "purged": [],
+          "excluded": [],
+          "message": "Deployment successful."
+        }
+        ========================================
+
+    EXAMPLE 2: LTX had previously been trimmed to the vault (a USB v.4 flash drive) to free up NVMe space.
+               To bring the models back to the active configuration, the "--a" command was run against the
+               workflow.  The authoritative source for the deployment was vault, and the deployment of
+               LTX 2.3 completed in 7 minutes.
+
+      ========================================
+      [START]   : 2026-09-17 03:34:12.573631
+      [COMMAND] : ['--a', '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/video_ltx2_3_i2v.json']
+      [END]     : 2026-09-17 03:41:14.977167
+      ========================================
+      {
+        "command": "DeploymentPipeline",
+        "attempted": 5,
+        "successful": 5,
+        "active": [],
+        "download": [],
+        "vault": [
+          "ltx-2.3-22b-dev-fp8.safetensors",
+          "ltx_2.3_22b_distilled_1.1_lora_dynamic_fro09_avg_rank_111_bf16.safetensors",
+          "ltx-2.3-spatial-upscaler-x2-1.1.safetensors",
+          "gemma_3_12B_it_fp4_mixed.safetensors",
+          "gemma-3-12b-it-abliterated_lora_rank64_bf16.safetensors"
+        ],
+        "failed": [],
+        "purged": [],
+        "excluded": [],
+        "message": "Deployment successful."
+      }
+
+    EXAMPLE 3: In this example, 423MiB was ingested into the vault and freed from the ComfyUI/models folder 
+               with the "--t" (trim) option. The ingest/trim completed in a few milliseconds.
+
+      ========================================
+      [START]   : 2026-09-17 03:43:28.230841
+      [COMMAND] : ['--t', '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/EDIT_BG_REMOVE.json']
+      [END]     : 2026-09-17 03:43:28.245499
+      ========================================
+      {
+        "command": "TrimPipeline",
+        "attempted": 1,
+        "successful": 1,
+        "active": [],
+        "download": [],
+        "vault": [
+          "birefnet.safetensors"
+        ],
+        "failed": [],
+        "purged": [],
+        "excluded": [],
+        "message": "Trim successful."
+      }
+      ========================================
+
+    EXAMPLE 4: Once a model is vaulted, if you add the workflow back to active with "--a" or "--as", 
+               it is restored using the vault as the authoritative source.  Total deployment time, 1 second.
+
+      ========================================
+      [START]   : 2026-09-17 03:43:32.850665
+      [COMMAND] : ['--as', '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/EDIT_BG_REMOVE.json']
+      [END]     : 2026-09-17 03:43:33.935773
+      ========================================
+      {
+        "command": "SpotDeploymentPipeline",
+        "attempted": 1,
+        "successful": 1,
+        "active": [],
+        "download": [],
+        "vault": [
+          "birefnet.safetensors"
+        ],
+        "failed": [],
+        "purged": [],
+        "excluded": [],
+        "message": "Deployment successful."
+      }
+      ========================================
+
+
+ADVANCED:
+=========
+Because NanoVault is an API server, it's possible to use curl to perform all functions remotely as part of
+an admin script.
+
+Example:
+
+curl -X POST "http://127.0.0.1:8000/api/execute" \
+     -H "Content-Type: application/json" \
+     -d '{"command": ["--as", "/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/video_minimax_h3_i2v.json"]}'
+
+Results:
+{
+  "status": "SUCCESS",
+  "command_echo": [
+    "--as",
+    "/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/video_minimax_h3_i2v.json"
+  ],
+  "retval": {
+    "command": "SpotDeploymentPipeline",
+    "attempted": 5,
+    "successful": 5,
+    "active": [
+      "minimax_h3_video_vae_fp16.safetensors",
+      "minimax_h3_audio_vae_fp32.safetensors",
+      "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+      "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+      "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
+    ],
+    "download": [],
+    "vault": [],
+    "failed": [],
+    "purged": [],
+    "excluded": [],
+    "message": "Deployment successful."
+  },
+  "message": "Successfully executed --as on /home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/video_minimax_h3_i2v.json"
+}
+
+CONCLUSION
+==========
+There are quite a few features that I didn't mention here, so consider this a quick start guide for beginners and
+power users.  There are more command line goodies listed in nv.py.
+
+If you want to support the future development of NanoVault, please consider sending a small donation through
+Patreon.  Every little bit helps keep the tensor cores warm and the community rich with new innovations.
+
+  https://patreon.com/AmNanotech
+
+Enjoy!!!

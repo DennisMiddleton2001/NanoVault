@@ -1,4 +1,6 @@
 NanoVault Setup Guide (Python 3.12)
+===================================
+Before you begin, please refer to the technical_specifications.txt file for NanoVault.
 
 1. Prerequisites
 
@@ -55,20 +57,24 @@ NanoVault Setup Guide (Python 3.12)
 
 3. Verification & Server Launch
 
-    Run the CLI configuration check to validate directory pathing and JSON integrity before starting services:
+    Edit and create the paths in config.json --OR-- run config_ui.py (optional GUI). If you use the GUI, remember to
+    click "Apply" to save the updated config.json.
+
+    Run the CLI configuration check to sanity check directory pathing and JSON integrity before starting the server:
 
         Bash
         ---------------------------------------------
         python nv.py --config
-        If any step reports red, re-check directory permissions and syntax in config.json.
-
+        Scroll through the output.  If you see red stop sign icons, double-check directory permissions
+        and syntax in config.json.
 
     Once all checks are green, spin up the local server:
 
         Bash / CMD
         ---------------------------------------------
         python main.py
-        Hold Ctrl and click the local endpoint shown in the terminal (typically [http://0.0.0.0:8000](http://0.0.0.0:8000) or [http://127.0.0.1:8000](http://127.0.0.1:8000)) to launch the web console.
+        Hold Ctrl and click the local endpoint shown in the terminal (typically [http://0.0.0.0:8000] or [http://127.0.0.1:8000])
+        This will open the web console in your browser.
 
 
 4. After Prerequisites are met, subsequent runs only require venv activation and "python main.py".
@@ -81,4 +87,4 @@ feedback for improvements.
     Need help?????
     Open support requests with Mia via the AM Nanotech portal: https://www.amnanotech.com
     
-    Support ongoing sovereign compute development: https://www.patreon.com/cw/AmNanotech
+    Please support community development: https://www.patreon.com/cw/AmNanotech
