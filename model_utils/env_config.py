@@ -2,6 +2,7 @@ import os
 import sys
 import json
 from pathlib import Path
+import platform
 
 from .banner_gen import Banner
 from .log_icons import LogIcons
@@ -12,9 +13,6 @@ class EnvironmentConfig:
         config_error = False
         self.ico = LogIcons()
         self.env_path = env_path
-        
-        if banner:
-            Banner()
 
         json_path = os.path.expanduser(os.path.join(".",env_path))
         try:
