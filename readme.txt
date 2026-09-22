@@ -25,9 +25,9 @@ Before you begin, please refer to the technical_specifications.txt file for Nano
 
     Linux Setup (The "Cool Kids Club")
 
-        Add the deadsnakes repository and install Python 3.12:
+        Add the deadsnakes repository and install Python 3.12 or Python 3.13 for Debian:
 
-            Bash
+            Bash (non-Debian)
             ---------------------------------------------
             sudo add-apt-repository -y ppa:deadsnakes/ppa
             sudo apt update
@@ -35,9 +35,14 @@ Before you begin, please refer to the technical_specifications.txt file for Nano
 
         Enter your cloned NanoVault directory, set up your virtual environment, and activate it:
 
-            Bash
+            Bash (non-Debian)
             ---------------------------------------------
             python3.12 -m venv venv
+            source venv/bin/activate
+
+            Bash (Debian)
+            ---------------------------------------------
+            python3.13 -m venv venv
             source venv/bin/activate
 
 2. Installation & Environment Configuration
