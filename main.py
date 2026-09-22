@@ -7,6 +7,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 import uvicorn
+from fastapi import Request
+from fastapi.responses import JSONResponse
 
 from model_utils.nano_arch import SovereignManager
 
@@ -41,9 +43,6 @@ async def get_workflow_path():
         return {"status": "SUCCESS", "workflow_path": full_path}
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "ERROR", "message": str(e)})
-
-from fastapi import Request
-from fastapi.responses import JSONResponse
 
 @app.post("/api/execute")
 async def execute_command(request: Request):
