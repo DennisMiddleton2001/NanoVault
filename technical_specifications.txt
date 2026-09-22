@@ -224,6 +224,7 @@ Example:
 
 curl -X POST "http://127.0.0.1:8000/api/execute" \
      -H "Content-Type: application/json" \
+     -H "Origin: http://127.0.0.1:8000" \
      -d '{"command": ["--as", "/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/video_minimax_h3_i2v.json"]}'
 
 Results:
