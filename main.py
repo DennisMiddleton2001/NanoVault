@@ -44,6 +44,17 @@ async def get_workflow_path():
 
 @app.post("/api/execute")
 async def execute_command(request: Request):
+    # VFP_02_shield: Strict Origin Validation
+    origin = request.headers.get("origin")
+    referer = request.headers.get("referer")
+    
+    # Standardize the incoming origin string for comparison
+    client_origin = origin if origin else (referer.rstrip('/') if referer else None)
+    allowed_origins = ["http://127.0.0.1:8000", "http://localhost:8000"]
+    
+    if client_origin not in allowed_origins:
+        return {"status": "ERROR", "message": "Unauthorized: Cross-Origin request blocked."}
+
     payload = await request.json()
     command_array = payload.get("command", [])
     
@@ -67,7 +78,7 @@ async def execute_command(request: Request):
             "error_type": type(e).__name__,
             "message": str(e)
         }
-
+        
 if __name__ == "__main__":
     port = 8000
     host_id = "127.0.0.1"
