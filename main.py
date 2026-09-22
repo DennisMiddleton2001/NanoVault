@@ -42,6 +42,9 @@ async def get_workflow_path():
     except Exception as e:
         return JSONResponse(status_code=500, content={"status": "ERROR", "message": str(e)})
 
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
 @app.post("/api/execute")
 async def execute_command(request: Request):
     # VFP_02_shield: Strict Origin Validation
@@ -53,13 +56,21 @@ async def execute_command(request: Request):
     allowed_origins = ["http://127.0.0.1:8000", "http://localhost:8000"]
     
     if client_origin not in allowed_origins:
-        return {"status": "ERROR", "message": "Unauthorized: Cross-Origin request blocked."}
+        # Returns HTTP 403 Forbidden at the network layer
+        return JSONResponse(
+            status_code=403,
+            content={"status": "ERROR", "message": "Unauthorized: Cross-Origin request blocked."}
+        )
 
     payload = await request.json()
     command_array = payload.get("command", [])
     
     if not command_array:
-        return {"status": "ERROR", "message": "Empty command array received."}
+        # Returns HTTP 400 Bad Request
+        return JSONResponse(
+            status_code=400,
+            content={"status": "ERROR", "message": "Empty command array received."}
+        )
 
     command_flag = command_array[0]
     target = command_array[1] if len(command_array) > 1 else "Global"
@@ -73,12 +84,16 @@ async def execute_command(request: Request):
             "message": f"Successfully executed {command_flag} on {target}"
         }
     except Exception as e:
-        return {
-            "status": "ERROR",
-            "error_type": type(e).__name__,
-            "message": str(e)
-        }
-        
+        # Returns HTTP 500 Internal Server Error
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "ERROR",
+                "error_type": type(e).__name__,
+                "message": str(e)
+            }
+        )
+
 if __name__ == "__main__":
     port = 8000
     host_id = "127.0.0.1"
