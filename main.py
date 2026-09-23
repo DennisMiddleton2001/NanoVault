@@ -58,7 +58,7 @@ async def execute_command(request: Request):
         # Returns HTTP 403 Forbidden at the network layer
         return JSONResponse(
             status_code=403,
-            content={"status": "ERROR", "message": "Unauthorized: Cross-Origin request blocked."}
+            content={"status": "ERROR", "message": "Unauthorized"}
         )
 
     payload = await request.json()
