@@ -16,7 +16,7 @@ _SCALAR = {0: "B", 1: "b", 2: "H", 3: "h", 4: "I", 5: "i", 6: "f", 7: "?",
            10: "Q", 11: "q", 12: "d"}
 
 class GGUFReader:
-    # Big thanks to  for the GGUF header parsing logic. This class is a sequential reader for GGUF headers, optimized to skip heavy metadata.
+    # Big thanks to community member for the GGUF header parsing logic. This class is a sequential reader for GGUF headers, optimized to skip heavy metadata.
     """Sequential reader for GGUF headers, optimized to skip heavy metadata."""
     def __init__(self, fh):
         self.fh = fh
