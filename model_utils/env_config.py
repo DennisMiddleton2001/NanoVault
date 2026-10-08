@@ -123,8 +123,8 @@ class EnvironmentConfig:
 
         print("")
         print(f"{self.ico.get('KEY')} HASH_TYPE      : {hash_type}")                        
-        print(f"{self.ico.get('KEY')} HF_TOKEN       : {self.hf_token[:10]}...")
-        print(f"{self.ico.get('KEY')} CIVITAI_TOKEN  : {self.civitai_token[:10]}...\n")
+        print(f"{self.ico.get('KEY')} HF_TOKEN       : {self.hf_token[:10] if self.hf_token else 'Not Set'}...")
+        print(f"{self.ico.get('KEY')} CIVITAI_TOKEN  : {self.civitai_token[:10] if self.civitai_token else 'Not Set'}...\n")
         
         if len(self.immutable):
             print(f"{self.ico.get('LIGHT')} Locked From Purge")
