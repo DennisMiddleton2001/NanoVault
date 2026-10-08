@@ -2,10 +2,12 @@ import os
 from .vault_manager import VaultManager
 
 class TrimPipeline:
-    def __init__(self, env = None, model_list = None):
+    def __init__(self, env = None, workflow_data = None):
         self.env = env
-        self.vault = VaultManager(self.env)
-        self.model_list = model_list
+        self.model_list = workflow_data.get("model_list", [])
+        self.id = workflow_data.get("id", 0)
+        self.revision = workflow_data.get("revision", 0)
+        self.vault = VaultManager(self.env, workflow_data=workflow_data)
 
     def run(self):
         response = {

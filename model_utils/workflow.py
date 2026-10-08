@@ -20,17 +20,17 @@ class WorkflowEnumerator:
                 if file.lower().endswith(".json"):
 
                     fq_path = os.path.join(root, file)
-                    models = WorkflowParser(self.env, fq_path).get_required_models()
+                    workflow_data = WorkflowParser(self.env, fq_path).get_required_models()
 
                     worflow_entry = {
                         "name"        : file,
                         "fq_path"     : fq_path,
                         "active_size" : int(0),
                         "vault_size"  : int(0),
-                        "models"      : models
+                        "models"      : workflow_data["model_list"]
                     }
 
-                    for m in models:
+                    for m in workflow_data["model_list"]:
                         worflow_entry["vault_size"] += m["vault_size"]
                         worflow_entry["active_size"] += m["active_size"]
 
@@ -45,7 +45,7 @@ class WorkflowParser:
         self.fq_path = fq_path
         self.valid_exts = ('.safetensors', '.ckpt', '.pt', '.pth', '.bin', '.gguf', '.onnx', '.sft')
         self.env = env
-        self.vault = VaultManager(self.env)
+
         # Use known path mappings for ComfyUI node types to their respective model folders
         self.NODE_TYPE_TO_FOLDER = {
             "CheckpointLoaderSimple": "checkpoints",
@@ -76,8 +76,23 @@ class WorkflowParser:
                 if isinstance(custom_node_paths, dict):
                         self.NODE_TYPE_TO_FOLDER.update(custom_node_paths)
 
-        with open(self.fq_path, 'r') as f:
-            self.workflow = json.load(f)
+        try:
+            with open(self.fq_path, 'r') as f:
+                self.workflow = json.load(f)
+            self.id       = self.workflow["id"]
+            self.revision = self.workflow["revision"]
+        except Exception as e:
+            print(f"{self.env.ico.get('ERR')}Failed to load workflow JSON from '{self.fq_path}': {e}")
+            self.workflow = {}
+
+        self.workflow_name = self.fq_path
+        workflow_data = {
+            "id": self.id, 
+            "revision": self.revision, 
+            "workflow_name": self.workflow_name
+            }
+        self.vault = VaultManager(self.env,workflow_data=workflow_data)
+
 
     def get_active_size(self, model_folder, model_name):
         valid_active_fq_path = self.vault.valid_active_fq_path(model_folder, model_name)
@@ -94,9 +109,14 @@ class WorkflowParser:
             return os.path.getsize(valid_vault_fq_path)
 
     def get_required_models(self):
-        model_list = list()
-        model_list = self.get_workflow_model_list()
-        for model in model_list:
+        workflow_data = {
+            "id": self.id,
+            "revision": self.revision,
+            "workflow_name": self.workflow_name,
+            "model_list": self.get_workflow_model_list()
+        }
+
+        for model in workflow_data["model_list"]:
             # If model path is a lora, special case that because it's going to be "models".
             if model.get("node_type").lower().find("lora") > 0:
                 model["model_path"] = "loras"
@@ -110,12 +130,14 @@ class WorkflowParser:
 
             model.update({"active_size" : active_size})
             model.update({"vault_size"  : vault_size})
-        if not len(model_list):
+
+        if not len(workflow_data["model_list"]):
             pass
             # This workflow has no models.abs
             # It's possible, but let's keep an eye on it.
             # print(f"{self.env.ico.get("WRN")}No models found in '{self.fq_path}' - report if this is a bug.")
-        return model_list
+        
+        return workflow_data
 
     def get_workflow_model_list(self):
         models_found = []

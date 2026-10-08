@@ -8,9 +8,12 @@ from .load_model import LoadModel
 
 class VaultManager:
     
-    def __init__(self, env = None):
+    def __init__(self, env = None, workflow_data = None):
         self.env = env
-
+        self.id = workflow_data.get("id", 0) if workflow_data else 0
+        self.revision = workflow_data.get("revision", 0) if workflow_data else 0
+        self.workflow_name = workflow_data.get("workflow_name", "") if workflow_data else ""
+        
     def clean(self, path):
         return path.strip(' \t\n\r"\'')
 
@@ -165,8 +168,12 @@ class VaultManager:
         if vault_fq_path:
             try:
                 sidecar_entry = self.read_sidecar_entry(vault_fq_path)
-                if sidecar_entry and not len(sidecar_entry.get("model_subfolder", "")):
+                # If the sidecar entry exists but does not have the new format, update it.
+                if sidecar_entry:
                     sidecar_entry["model_subfolder"] = model_subfolder
+                    sidecar_entry["workflow_id"].append(self.id) if self.id not in sidecar_entry.get("workflow_id", []) else None
+                    sidecar_entry["workflow_name"].append(self.workflow_name) if self.workflow_name not in sidecar_entry.get("workflow_name", []) else None
+                    sidecar_entry["revision"].append(self.revision) if self.revision not in sidecar_entry.get("revision", []) else None
                     self.write_sidecar_entry(vault_fq_path, sidecar_entry)
             except KeyError:
                 pass
@@ -224,11 +231,29 @@ class VaultManager:
                 print(f"{self.env.ico.get('WRN',__class__)} Could not remove source file after move: {e}")
 
         print(f"{self.env.ico.get('ACT',__class__)} Writing NanoVault metadata.")
-        sidecar_entry = {
-            "hash": vault_hash,
-            "model_subfolder": model_entry["model_path"],
-            "node_type": model_entry["node_type"]
-        }
+
+        sidecar_entry = self.read_sidecar_entry(dest_fq_path)
+        # If the sidecar entry does not exist, create a new one with the required fields.
+        if not sidecar_entry:
+            sidecar_entry = {
+                "workflow_id": [self.id],
+                "revision": [self.revision],
+                "workflow_name": [self.workflow_name],
+                "hash": vault_hash,
+                "model_subfolder": model_entry["model_path"],
+                "node_type": model_entry["node_type"]
+            }
+        else:
+            # If the sidecar entry exists, update it with the new workflow information.
+            if self.id not in sidecar_entry.get("workflow_id", []):
+                sidecar_entry["workflow_id"].append(self.id)
+            if self.workflow_name not in sidecar_entry.get("workflow_name", []):
+                sidecar_entry["workflow_name"].append(self.workflow_name)
+            if self.revision not in sidecar_entry.get("revision", []):
+                sidecar_entry["revision"].append(self.revision)
+            sidecar_entry["hash"] = vault_hash
+            sidecar_entry["model_subfolder"] = model_entry["model_path"]
+            sidecar_entry["node_type"] = model_entry["node_type"]
 
         if not self.write_sidecar_entry(dest_fq_path, sidecar_entry):
             print(f"{self.env.ico.get('ERR',__class__)} Unable to write sidecar file.")

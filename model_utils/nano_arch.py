@@ -63,8 +63,8 @@ class SovereignManager:
             clean_path = ''
 
         if '.json' in clean_path.lower():
-            model_list = WorkflowParser(self.env, clean_path).get_required_models()
-            if not len(model_list):
+            workflow_data = WorkflowParser(self.env, clean_path).get_required_models()
+            if not len(workflow_data["model_list"]):
                 print(f"{self.env.ico.get('WRN',__class__)} No models found in '{clean_path}'")
                 reply = {
                     "command" : "Parse Workflow",
@@ -83,19 +83,19 @@ class SovereignManager:
                 }
         elif self.command in ['--a']:
                     print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
-                    reply = DeploymentPipeline(self.env, model_list).run()
+                    reply = DeploymentPipeline(self.env, workflow_data).run()
         elif self.command in ['--as']:
                     print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
-                    reply = DeploymentPipeline(self.env, model_list, spot_install = True).run()
+                    reply = DeploymentPipeline(self.env, workflow_data, spot_install = True).run()
         elif self.command in ['--t']:
             print(f"{self.env.ico.get('ACT',__class__)} TRIM: '{clean_path}'")
-            reply = TrimPipeline(self.env, model_list).run()
+            reply = TrimPipeline(self.env, workflow_data).run()
         elif self.command in ['--e']:
             print(f"{self.env.ico.get("ACT",__class__)} Starting template-driven PURGE for: {clean_path}")
-            reply = PurgePipeline(self.env,model_list).run()
+            reply = PurgePipeline(self.env,workflow_data).run()
         elif self.command in ['--i']:
             print(f"{self.env.ico.get("ACT",__class__)} Starting template-driven INGEST for: {clean_path}")
-            reply = IngestPipeline(self.env, model_list).run()
+            reply = IngestPipeline(self.env, workflow_data).run()
         elif self.command in ['--scan-vault','--scan-active']:
             vault = True if '--scan-vault' in args_list else False
             print(f"{self.env.ico.get("ACT",__class__)} Starting scan for: {"NanoVault" if vault else "Active Configuration"}")
@@ -103,10 +103,10 @@ class SovereignManager:
         elif self.command in ['--single-add']:
             if argc > 3:
                 # For single install, just create a model list with one entry.
-                model_list = [
+                workflow_data = [
                     {"model_name": args_list[1], 'model_path': args_list[2],'model_url' : args_list[3] if argc == 4 else ""}
                 ]
-                reply = DeploymentPipeline(self.env,model_list).run()
+                reply = DeploymentPipeline(self.env,workflow_data).run()
         elif self.command in ['--model']:
             print(f"{self.env.ico.get("INFO",__class__)} Analyzing '{clean_path}'")
             reply = LoadModel(self.env, clean_path, debug=True).analyze()

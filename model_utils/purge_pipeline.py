@@ -3,10 +3,13 @@ from .vault_manager import VaultManager
 
 class PurgePipeline:
     #Orchestrates the complete and permanent removal of workflow assets from all storage.
-    def __init__(self, env = None, model_list = None):
+    def __init__(self, env = None, workflow = None):
         self.env = env
-        self.model_list = model_list
         self.vault = VaultManager(self.env)
+        self.model_list = workflow.get("model_list", [])
+        self.id = workflow.get("id", 0)
+        self.revision = workflow.get("revision", 0)
+
 
     def immune_to_purge(self, name):
         return True if name in self.env.immutable else False

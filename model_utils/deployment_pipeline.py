@@ -7,13 +7,16 @@ from .vault_manager import VaultManager
 
 class DeploymentPipeline:
 
-    def __init__(self, env = None, model_list = None, spot_install = False):
+    def __init__(self, env = None, workflow_data = None, spot_install = False):
 
         self.env = env
+        self.model_list = workflow_data.get("model_list", [])
+        self.id = workflow_data.get("id", 0)
+        self.revision = workflow_data.get("revision", 0)
+        self.workflowName = workflow_data.get("workflow_name", "")
         self.spot_install = spot_install
-        self.vault = VaultManager(self.env)
+        self.vault = VaultManager(self.env, workflow_data)
         self.fetcher = ModelFetcher(self.env)
-        self.model_list = model_list
         self.url       = None
         self.subfolder = None
         self.name      = None

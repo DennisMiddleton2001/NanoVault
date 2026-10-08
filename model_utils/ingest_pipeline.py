@@ -4,10 +4,10 @@ from .vault_manager import VaultManager
 
 class IngestPipeline:
 
-    def __init__(self, env = None, model_list = None):
+    def __init__(self, env = None, workflow_data = None):
         self.env = env
-        self.vault = VaultManager(self.env)
-        self.model_list = model_list
+        self.workflow_data
+        self.vault = VaultManager(self.env,workflow_data=workflow_data)
     
     def run(self):
 
@@ -65,7 +65,7 @@ class IngestPipeline:
                 continue
 
             # If not, ingest the model into the NanoVault without deleting the source file.
-            if not self.vault.ingest_to_vault(active_fq_path, model_entry, delete_source=False):
+            if not self.vault.ingest_to_vault(active_fq_path, model_entry, workflow_data=self.workflow_data, delete_source=False):
                 print(f"{self.env.ico.get('BOX',__class__)} Ingest failure.")
                 response['failed'].append(model_name)
                 print(self.env.ico.sep(2))
