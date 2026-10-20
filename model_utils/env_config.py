@@ -2,57 +2,104 @@ import os
 import sys
 import json
 from pathlib import Path
+import platform
 
 from .banner_gen import Banner
 from .log_icons import LogIcons
 
-env_path = os.path.join(".", "environment.json")
-
 class EnvironmentConfig:
     """Manages system paths, environment states, and API credentials."""
-    def __init__(self, env_path = env_path, show_banner=True, show_config=False):
+    def __init__(self, env_path = "config.json", banner=False):
         config_error = False
-        self.show_config = show_config
         self.ico = LogIcons()
         self.env_path = env_path
-        
-        if show_banner:
-            Banner()
 
         json_path = os.path.expanduser(os.path.join(".",env_path))
-        try:        
-            with open(json_path) as f:
-                env = json.load(f)
-            
+        try:
+            self.env_path = env_path
+            env = self.get_config(self.env_path)
             paths = env.get("paths")
-            self.active_root   = os.path.expanduser(os.path.join('.', paths.get('active_root')))
-            self.staging_cache = os.path.expanduser(os.path.join('.', paths.get('staging_cache')))
-            self.vault_dir     = os.path.expanduser(os.path.join('.', paths.get('vault_dir')))
-            self.fast_hash = env.get("fast_hash")
+            self.comfy_ui_root = os.path.expanduser(paths.get('comfy_ui_root'))
+            self.active_root   = os.path.expanduser(os.path.join(self.comfy_ui_root, 'models'))
+            self.staging_cache = os.path.expanduser(paths.get('staging_cache'))
+            self.vault_dir     = os.path.expanduser(paths.get('vault_dir'))
+            self.fast_hash = env.get('fast_hash')
             self.sidecar_ext = ".xxh128" if self.fast_hash else ".sha256"
-            tokens = env.get("tokens")
-            self.hf_token = tokens.get("hf_token")
-            self.civitai_token = tokens.get("civitai_token")
-            persist = env.get('exclude_from_purge')
-            self.immutable = persist
+
+            tokens = env.get("tokens") or {}
+
+            # Check JSON first; if missing, empty string, or None, fall back to environment variables
+            self.hf_token = (
+                tokens.get("hf_token")
+                or os.environ.get("HF_TOKEN")
+                or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+            )
+
+            self.civitai_token = (
+                tokens.get("civitai_token")
+                or os.environ.get("CIVITAI_TOKEN")
+                or os.environ.get("CIVITAI_API_KEY")
+            )
+
+            self.immutable = env.get('exclude_from_purge')
 
         except Exception as e:
             #if something is wrong with JSON, point out the line number.
             print(f"{self.ico.get('ERR')} - ERROR: {self.env_path}\n{e}")
-            sys.exit(1)
 
         # Automatically create the directory (and any necessary parent directories) if it's missing
         pc = Path(self.staging_cache)
         pv = Path(self.vault_dir)
-        
-        if self.show_config:
-            self.print_config()
 
+    def get_config(self, env_path=None):
+        if env_path is not None:
+            self.env_path = env_path
+        with open(self.env_path, "r", encoding="utf-8") as f:
+            env = json.load(f)
+        return env
+
+    def set_config(
+        self,
+        comfy_root,
+        vault_dir,
+        staging_cache,
+        fast_hash=True,
+        tokens=None,
+        exclude_from_purge=None,
+    ):
+        if tokens is None:
+            tokens = {}
+        if exclude_from_purge is None:
+            exclude_from_purge = []
+
+        config = {
+            "application": "NanoVault",
+            "version": "1.1.0",
+            "paths": {
+                "comfy_ui_root": comfy_root,
+                "vault_dir": vault_dir,
+                "staging_cache": staging_cache,
+            },
+            "fast_hash": fast_hash,
+            "tokens": tokens,
+            "exclude_from_purge": exclude_from_purge,
+        }
+
+        with open(self.env_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2)
+
+        return config
 
     def print_config(self):
         print(f"NanoArch Configuration")
         print(self.ico.sep(0))
         print(f"CONFIG : '{self.env_path}'\n")
+        config_error = False
+        if os.path.exists(self.comfy_ui_root):
+            print(f"{self.ico.get('FOLD')} ComfyUI    : {self.comfy_ui_root}")
+        else:
+            print(f"{self.ico.get('ERR')} ComfyUI     : {self.comfy_ui_root} - does not exist.")
+            config_error = True
 
         if os.path.exists(self.active_root):
             print(f"{self.ico.get('FOLD')} Models    : {self.active_root}")
@@ -76,18 +123,19 @@ class EnvironmentConfig:
 
         print("")
         print(f"{self.ico.get('KEY')} HASH_TYPE      : {hash_type}")                        
-        print(f"{self.ico.get('KEY')} HF_TOKEN       : {self.hf_token[:10]}...")
-        print(f"{self.ico.get('KEY')} CIVITAI_TOKEN  : {self.civitai_token[:10]}...")
-
-        print()
-
-        if len(persist):
+        print(f"{self.ico.get('KEY')} HF_TOKEN       : {self.hf_token[:10] if self.hf_token else 'Not Set'}...")
+        print(f"{self.ico.get('KEY')} CIVITAI_TOKEN  : {self.civitai_token[:10] if self.civitai_token else 'Not Set'}...\n")
+        
+        if len(self.immutable):
             print(f"{self.ico.get('LIGHT')} Locked From Purge")
             print(self.ico.sep(3, 40))
-            for m in persist:
+            for m in self.immutable:
                 print(f"{self.ico.get('LOCK')}    {m}")
 
         print(self.ico.sep(0))
         if config_error:
-            print(f"{self.ico.get('ERR')} Unable to continue - verify paths.")
+            print(f"{self.ico.get('ERR')} Unable to continue - check {self.env_path}.")
+            return False
+
+        return True
 

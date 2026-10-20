@@ -7,10 +7,30 @@ const { createApp, ref, onMounted, nextTick } = Vue;
 
 createApp({
   setup() {
-    const savedPath = localStorage.getItem('sanctuary_workflow_path');
-    const workflowPath = ref(savedPath || '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/');
-    localStorage.setItem('sanctuary_workflow_path', workflowPath.value);
+    const workflowPath = ref('');
 
+    // Define the update function first
+    function updateWorkflowPath(newPath) {
+      workflowPath.value = newPath;
+      localStorage.setItem('sanctuary_workflow_path', newPath);
+    }
+
+    // Unconditionally fetch the path on load
+    fetch('/api/config/workflow-path', { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === "SUCCESS") {
+          updateWorkflowPath(data.workflow_path);
+          
+          // Automatically trigger the list refresh
+          // (This works perfectly because the async wait allows setup() to finish defining it below)
+          loadWorkflows(); 
+        }
+      })
+      .catch(err => console.error('Fetch failed:', err));
+    
+
+    // ... rest of your setup logic remains unchanged
     const workflows = ref([]);
     const activeSize = ref('0 B');
     const vaultSize = ref('0 B');
@@ -176,7 +196,7 @@ createApp({
     };
 
     const loadWorkflows = async () => {
-      localStorage.setItem('sanctuary_workflow_path', workflowPath.value);
+      //localStorage.setItem('sanctuary_workflow_path', workflowPath.value);
       try {
         const data = await fetchWorkflows(workflowPath.value);
         if (data.status === 'SUCCESS') {

@@ -51,17 +51,20 @@ class AnalyzeModelsFolder:
         total_size = 0
         invalid_count = 0
 
+        supported_extensions = (".safetensors", ".gguf")
+
         for root, _, files in os.walk(self.target_dir):
             for file in files:
-                if file.lower().endswith(".safetensors"):
+                # endswith() natively supports checking against a tuple
+                if file.lower().endswith(supported_extensions):
                     fq_path = os.path.join(root, file)
                     loader = LoadModel(self.env, fq_path)
 
-                    if (vault):
+                    if vault:
                         entry = loader.check_vault_model(file)
                     else:
                         entry = loader.check_model_fq_path(fq_path)
-                    
+
                     total_size += entry['size']
 
                     if not entry['valid']:

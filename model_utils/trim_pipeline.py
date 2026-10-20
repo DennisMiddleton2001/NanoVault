@@ -2,10 +2,13 @@ import os
 from .vault_manager import VaultManager
 
 class TrimPipeline:
-    def __init__(self, env = None, model_list = None):
+    def __init__(self, env = None, workflow_data = None):
         self.env = env
-        self.vault = VaultManager(self.env)
-        self.model_list = model_list
+        self.workflow_data = workflow_data
+        self.model_list = workflow_data.get("model_list", [])
+        self.id = workflow_data.get("id", 0)
+        self.revision = workflow_data.get("revision", 0)
+        self.vault = VaultManager(self.env, workflow_data=workflow_data)
 
     def run(self):
         response = {
@@ -22,11 +25,10 @@ class TrimPipeline:
         }
 
         print(self.env.ico.sep(1))
-        for model in self.model_list:
-            model_entry = model
-            model_name = model['model_name']
-            model_path = model['model_path']
-            # This has the side effect of writing the model_subfolder to the NanoVault metadata.
+        for model_entry in self.model_list:
+            
+            model_name = model_entry['model_name']
+            model_path = model_entry['model_path']
             active_fq_path = self.vault.get_active_fq_path(model_path, model_name)
             valid_vault_fq_path = self.vault.get_valid_vault_fq_path(model_name)
 
@@ -61,9 +63,8 @@ class TrimPipeline:
             print(f"{self.env.ico.get('ALRT',__class__)} '{model_name}' Not found in NanoVault.")
             print(f"{self.env.ico.get('INFO',__class__)} Securing in NanoVault.")
 
-            # The active file is probably corrupted if this fails.
-            if not self.vault.ingest_to_vault(active_fq_path, model_entry, delete_source=True):
-                print(f"{self.env.ico.get('ERR',__class__)} Unable to secure file.")
+            if not self.vault.ingest_to_vault(source_fq_path=active_fq_path, model_entry=model_entry, workflow_data=self.workflow_data, delete_source=True):
+                print(f"{self.env.ico.get('ERR',__class__)} Unable to secure active file.")
                 response["failed"].append(model_name)
                 print(self.env.ico.sep(1))
                 continue

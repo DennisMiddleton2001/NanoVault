@@ -7,13 +7,17 @@ from .vault_manager import VaultManager
 
 class DeploymentPipeline:
 
-    def __init__(self, env = None, model_list = None, spot_install = False):
+    def __init__(self, env = None, workflow_data = None, spot_install = False):
 
         self.env = env
+        self.workflow_data = workflow_data
+        self.model_list = workflow_data.get("model_list", [])
+        self.id = workflow_data.get("id", 0)
+        self.revision = workflow_data.get("revision", 0)
+        self.workflowName = workflow_data.get("workflow_name", "")
         self.spot_install = spot_install
-        self.vault = VaultManager(self.env)
+        self.vault = VaultManager(self.env, workflow_data)
         self.fetcher = ModelFetcher(self.env)
-        self.model_list = model_list
         self.url       = None
         self.subfolder = None
         self.name      = None
@@ -33,11 +37,11 @@ class DeploymentPipeline:
         }
 
         print(self.env.ico.sep(1))
-        for model in self.model_list:
-            model_entry = model
-            model_name = model['model_name']
-            model_subfolder = model['model_path']
-            model_url = model['model_url']
+        for model_entry in self.model_list:
+           
+            model_name = model_entry['model_name']
+            model_subfolder = model_entry['model_path']
+            model_url = model_entry['model_url']
 
             # Check if model exists in active path.
             print(f"{self.env.ico.get("ACT",__class__)} Evaluating dependency '{model_subfolder}' '{model_name}'.")
@@ -81,18 +85,25 @@ class DeploymentPipeline:
             else:
                 # If it does exist, we need to know whether it's worth continuing the download or deleting it.
                 cache_model_entry = self.vault.validate_file_structure(staging_fq_path)
-                if not cache_model_entry["valid"] and cache_model_entry["error"].find("CONTINUE_DOWNLOAD") >= 0:
+
+                error_message = cache_model_entry.get("error", None)
+                continue_download = False if error_message and error_message.find("CONTINUE_DOWNLOAD") == -1 else True
+                
+                if cache_model_entry["valid"]:
+                    print(f"{self.env.ico.get("ACT",__class__)} Valid file found in download cache.")
+                elif not cache_model_entry["valid"] and continue_download:
                     print(f"{self.env.ico.get("COMM",__class__)} Truncated tensor found, continuing download.")
-                elif not cache_model_entry["valid"]:
-                    print(f"{self.env.ico.get("WRN",__class__)} Corrupted download found. Attempting new download.")
+                elif not cache_model_entry["valid"] and not continue_download:
+                    print(f"{self.env.ico.get("WRN",__class__)} Deleting corrupted download file.")
                     os.remove(staging_fq_path)
-            
+
+                # Decide whether to attempt a re-download.
                 if not cache_model_entry["valid"]:
                     if not len(model_url):
-                        print(f"{self.env.ico.get("WRN",__class__)} No download url. Checking download cache folder.")
+                        print(f"{self.env.ico.get("WRN",__class__)} No download url.")
                     else:
                         print(f"{self.env.ico.get('COMM',__class__)} Downloading to cache.")
-                    staging_fq_path = self.fetcher.download_to_cache(model_url, model_name, model_subfolder)
+                        staging_fq_path = self.fetcher.download_to_cache(model_url, model_name, model_subfolder)
 
             if not staging_fq_path or not os.path.exists(staging_fq_path):
                 print(f"{self.env.ico.get("ERR",__class__)} Missing or invalid file in download cache.")
@@ -102,7 +113,7 @@ class DeploymentPipeline:
 
             # Skip vault ingest if spot install.
             if not self.spot_install:
-                if not self.vault.ingest_to_vault(staging_fq_path, model_entry, delete_source=True):
+                if not self.vault.ingest_to_vault(source_fq_path=staging_fq_path, model_entry=model_entry, workflow_data=self.workflow_data ,delete_source=True):
                     print(f"{self.env.ico.get("ERR",__class__)} Ingestion failed.")
                     response["failed"].append(model_name)
                     print(self.env.ico.sep(2))

@@ -1,0 +1,12 @@
+{
+  "application": "NanoVault",
+  "version": "1.2.0",
+  "paths": {
+    "comfy_ui_root": "",
+    "vault_dir": "",
+    "staging_cache": ""
+  },
+  "fast_hash": true,
+  "tokens": {},
+  "exclude_from_purge": []
+}

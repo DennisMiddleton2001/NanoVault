@@ -18,13 +18,14 @@ from .test_sweep import AnalyzeModelsFolder
 from .load_model import LoadModel
 from .workflow import WorkflowParser
 from .workflow import WorkflowEnumerator
+from .vault_manager import VaultManager
 
 # endregion
 
 class SovereignManager:
     """The universal runtime management class. Routes CLI commands to the correct pipeline."""
-    def __init__(self):
-        self.env = EnvironmentConfig()
+    def __init__(self, banner=False):
+        self.env = EnvironmentConfig(banner = banner)
         self.valid_commands = [
             '--a',
             '--as',
@@ -32,13 +33,19 @@ class SovereignManager:
             '--i',
             '--e',
             '--s',
+            '--single-add',
             '--model',
             '--scan-active',
             '--scan-vault',
             '--scan-workflow',
             '--list-workflows',
             '--query-metal-storage',
-            '--scan-all']
+            '--scan-all',
+            '--config',
+            '--rebuild-vault']
+
+    def is_valid_command(self, command):
+        return True if command in self.valid_commands else False
 
     def execute(self, args_list):
         start_time = datetime.now()
@@ -48,9 +55,9 @@ class SovereignManager:
         self.command = args_list[0].lower()
         argc = len(args_list)
                 
-        if not self.command in self.valid_commands:
-            return False
-                
+        if not self.is_valid_command(self.command):
+            return {"message" : "Invalid command."}
+
         if argc > 1:
             self.target_path = args_list[1]
             clean_path = self.target_path.strip(' \t\n\r"\'')
@@ -58,37 +65,64 @@ class SovereignManager:
             clean_path = ''
 
         if '.json' in clean_path.lower():
-            model_list = WorkflowParser(self.env, clean_path).get_required_models()
+            workflow_data = WorkflowParser(self.env, clean_path).get_required_models()
+            model_list = workflow_data["model_list"]
             if not len(model_list):
                 print(f"{self.env.ico.get('WRN',__class__)} No models found in '{clean_path}'")
-                return False
-
-        if self.command in ['--a']:
+                reply = {
+                    "command" : "Parse Workflow",
+                    "message" : f"No models found in '{clean_path}'"
+                }
+                return reply
+                
+        if self.command in ['--config']:
+            if self.env.print_config():
+                message = "Valid configuration found."
+            else:
+                message = f"NanoVault configuration is invalid. Check '{self.env.env_path}' file."
+            reply = {
+                "command"    : "CheckAppConfiguration",
+                "message"    : message
+                }
+        elif self.command in ['--a']:
                     print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
-                    reply = DeploymentPipeline(self.env, model_list).run()
+                    reply = DeploymentPipeline(env=self.env, workflow_data=workflow_data).run()
         elif self.command in ['--as']:
-                    print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
-                    reply = DeploymentPipeline(self.env, model_list, spot_install = True).run()
+                    print(f"{self.env.ico.get('ACT',__class__)} SPOT DEPLOY: '{clean_path}'")
+                    reply = DeploymentPipeline(env=self.env, workflow_data=workflow_data, spot_install= True).run()
         elif self.command in ['--t']:
             print(f"{self.env.ico.get('ACT',__class__)} TRIM: '{clean_path}'")
-            reply = TrimPipeline(self.env, model_list).run()
+            reply = TrimPipeline(self.env, workflow_data).run()
         elif self.command in ['--e']:
             print(f"{self.env.ico.get("ACT",__class__)} Starting template-driven PURGE for: {clean_path}")
-            reply = PurgePipeline(self.env,model_list).run()
+            reply = PurgePipeline(self.env,workflow_data).run()
         elif self.command in ['--i']:
             print(f"{self.env.ico.get("ACT",__class__)} Starting template-driven INGEST for: {clean_path}")
-            reply = IngestPipeline(self.env, model_list).run()
+            reply = IngestPipeline(env=self.env, model_list=model_list, workflow_data=workflow_data).run()
         elif self.command in ['--scan-vault','--scan-active']:
             vault = True if '--scan-vault' in args_list else False
             print(f"{self.env.ico.get("ACT",__class__)} Starting scan for: {"NanoVault" if vault else "Active Configuration"}")
             reply = AnalyzeModelsFolder(self.env).run(vault)
+        elif self.command in ['--single-add']:
+            if argc > 3:
+                # For single install, just create a model list with one entry.
+                workflow_data = [
+                    {"model_name": args_list[1], 'model_path': args_list[2],'model_url' : args_list[3] if argc == 4 else ""}
+                ]
+                reply = DeploymentPipeline(self.env,workflow_data).run()
         elif self.command in ['--model']:
             print(f"{self.env.ico.get("INFO",__class__)} Analyzing '{clean_path}'")
             reply = LoadModel(self.env, clean_path, debug=True).analyze()
         elif self.command in ['--scan-workflow']:
             reply = WorkflowParser(self.env,args_list[1]).get_required_models()
+        elif self.command in ['--rebuild-vault']:
+            workflows_fq_path = os.path.join(self.env.comfy_ui_root, 'user/default/workflows') if len(args_list) < 2 else args_list[1]
+            workflows_data = WorkflowEnumerator(env=self.env, workflow_root=workflows_fq_path).run()
+            vm = VaultManager(self.env)
+            reply = vm.rebuild_vault(workflows_data=workflows_data, force=False)
         elif self.command in ['--list-workflows']:
-            reply = WorkflowEnumerator(self.env,args_list[1]).run()
+            workflows_fq_path = os.path.join(self.env.comfy_ui_root, 'user/default/workflows') if len(args_list) < 2 else args_list[1]
+            reply = WorkflowEnumerator(env=self.env, workflow_root=workflows_fq_path).run()
         elif self.command in ['--query-metal-storage','--scan-all']:
             vault_info  = AnalyzeModelsFolder(self.env).run(True)
             active_info = AnalyzeModelsFolder(self.env).run(False)
@@ -97,10 +131,25 @@ class SovereignManager:
         else:
             print(f"{self.env.ico.get("ERR",__class__)} Unrecognized command line '{self.command}'")
             reply = None
+        
+        # Don't bloat the log with these functions.
+        if not self.command in ["--list-workflows", "--query-metal-storage"]:
+            lines = []
+            lines.append(f"[START]   : {start_time}\n")
+            lines.append(f"[COMMAND] : {args_list}\n")
+            lines.append(f"[END]     : {datetime.now()}\n")
+            lines.append('=' * 40 + "\n")
+            lines.append(json.dumps(reply, indent=2) + "\n")
+            lines.append('=' * 40 + '\n')
 
-        if not self.command in ['--list-workflows']:
-            end_time = datetime.now()
-            print(f"[{start_time}] {args_list}")
-            print(f"[{end_time}] Completed")
-            print(json.dumps(reply, indent=2))
+            log_folder = os.path.join(".","logs")
+            if not os.path.exists(log_folder):
+                os.makedirs(log_folder, exist_ok=True)
+
+
+            logfile_path = os.path.join(log_folder, f"{datetime.now().strftime('%Y%m%d')}.log")
+            with open(logfile_path, 'a') as f:
+                for l in lines:
+                    f.write(l)
+        
         return reply

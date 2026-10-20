@@ -5,12 +5,16 @@ import hashlib
 import xxhash
 import shutil
 from .load_model import LoadModel
+from .vault_db import SidecarFile
 
 class VaultManager:
     
-    def __init__(self, env = None):
+    def __init__(self, env = None, workflow_data = None):
         self.env = env
-
+        self.id = workflow_data.get("id", 0) if workflow_data else 0
+        self.revision = workflow_data.get("revision", 0) if workflow_data else 0
+        self.workflow_name         return True= workflow_data.get("workflow_name", "") if workflow_data else ""
+        
     def clean(self, path):
         return path.strip(' \t\n\r"\'')
 
@@ -53,6 +57,9 @@ class VaultManager:
         except Exception:
             pass
         return sidecar_entry
+    def _get_hasher(self):
+        """Returns the appropriate hasher instance based on fast_hash configuration."""
+        return xxhash.xxh128() if self.env.fast_hash else hashlib.sha256()
 
     def _get_hasher(self):
         """Returns the appropriate hasher instance based on fast_hash configuration."""
@@ -76,20 +83,15 @@ class VaultManager:
         return self.calculate_xxh_hash(model_fq_path) if self.env.fast_hash else self.calculate_sha_hash(model_fq_path)
 
     def robust_copy_and_verify(self, src_path, dst_path, chunk_size=8388608):
-        """
-        Streams src to dst while computing the source hash in-flight.
-        Flushes to disk via fsync, then executes a separate read-back verification 
-        pass on the destination to detect storage/NAS corruption.
-        Returns: (success: bool, source_digest: str, dest_digest: str)
-        """
         src_hasher = self._get_hasher()
+        tmp_dst_path = f"{dst_path}.tmp"
 
         # Ensure destination directory exists
         os.makedirs(os.path.dirname(dst_path), exist_ok=True)
 
-        # 1. Stream copy and calculate source hash concurrently
+        # 1. Stream copy to .tmp and calculate source hash concurrently
         try:
-            with open(src_path, 'rb') as fsrc, open(dst_path, 'wb') as fdst:
+            with open(src_path, 'rb') as fsrc, open(tmp_dst_path, 'wb') as fdst:
                 while chunk := fsrc.read(chunk_size):
                     src_hasher.update(chunk)
                     fdst.write(chunk)
@@ -97,26 +99,26 @@ class VaultManager:
                 os.fsync(fdst.fileno())
         except Exception as e:
             print(f"{self.env.ico.get('ERR', __class__)} Transfer failed during write: {e}")
-            if os.path.exists(dst_path):
+            if os.path.exists(tmp_dst_path):
                 try:
-                    os.remove(dst_path)
+                    os.remove(tmp_dst_path)
                 except Exception:
                     pass
             return False, None, None
 
         source_digest = src_hasher.hexdigest()
 
-        # 2. Independent read-back pass over destination to verify physical media
+        # 2. Independent read-back pass over .tmp destination to verify physical media
         dst_hasher = self._get_hasher()
         try:
-            with open(dst_path, 'rb') as fdst:
+            with open(tmp_dst_path, 'rb') as fdst:
                 while chunk := fdst.read(chunk_size):
                     dst_hasher.update(chunk)
         except Exception as e:
             print(f"{self.env.ico.get('ERR', __class__)} Transfer failed during readback: {e}")
-            if os.path.exists(dst_path):
+            if os.path.exists(tmp_dst_path):
                 try:
-                    os.remove(dst_path)
+                    os.remove(tmp_dst_path)
                 except Exception:
                     pass
             return False, source_digest, None
@@ -124,11 +126,27 @@ class VaultManager:
         dest_digest = dst_hasher.hexdigest()
         is_valid = (source_digest == dest_digest)
 
-        if not is_valid and os.path.exists(dst_path):
+        # 3. Rename on success, purge on failure
+        if is_valid:
             try:
-                os.remove(dst_path)
-            except Exception:
-                pass
+                # Remove existing file if replacing an active/corrupted file
+                if os.path.exists(dst_path):
+                    os.remove(dst_path)
+                os.rename(tmp_dst_path, dst_path)
+            except Exception as e:
+                print(f"{self.env.ico.get('ERR', __class__)} Failed to finalize file rename: {e}")
+                if os.path.exists(tmp_dst_path):
+                    try:
+                        os.remove(tmp_dst_path)
+                    except Exception:
+                        pass
+                return False, source_digest, dest_digest
+        else:
+            if os.path.exists(tmp_dst_path):
+                try:        return True
+                    os.remove(tmp_dst_path)
+                except Exception:
+                    pass
 
         return is_valid, source_digest, dest_digest
 
@@ -144,46 +162,45 @@ class VaultManager:
         if not os.path.exists(active_fq_path):
             return None
 
-        vault_fq_path = self.get_fq_vault_path(model_name)
-        if vault_fq_path:
-            try:
-                sidecar_entry = self.read_sidecar_entry(vault_fq_path)
-                if sidecar_entry and not len(sidecar_entry.get("model_subfolder", "")):
-                    sidecar_entry["model_subfolder"] = model_subfolder
-                    self.write_sidecar_entry(vault_fq_path, sidecar_entry)
-            except KeyError:
-                pass
-        
         return active_fq_path
 
     def get_valid_vault_fq_path(self, model_name):
-        vault_fq_path = self.get_fq_vault_path(model_name)
-        if not self.read_sidecar_entry(vault_fq_path) or not os.path.exists(vault_fq_path):
+        fq_vault_path = self.get_fq_vault_path(model_name)
+        sc = SidecarFile(
+            vault_path=self.env.vault_dir,
+            query_data={"model_name" : model_name},
+            fast_hash=self.env.fast_hash
+            )
+        
+        if not sc.get_hash() or not os.path.exists(sc.fq_model_path):
             return None
-        return vault_fq_path
+
+        return fq_vault_path
 
     def free_vault_file(self, model_name):
         vault_fq_path = self.get_fq_vault_path(model_name)
-        sidecar_fq_path = self.get_fq_sidecar_path(vault_fq_path)
-        try:
-            os.remove(vault_fq_path)
-        except Exception:
-            pass
-        try:
-            os.remove(sidecar_fq_path)
+        try:            
+            sc = SidecarFile(
+                    vault_path=self.env.vault_dir,
+                    query_data={"model_name" : model_name},
+                    fast_hash=self.env.fast_hash)
+            sc.delete_sidecar()
+            sc.delete_model()
         except Exception:
             pass
 
-    def ingest_to_vault(self, source_fq_path, model_entry=None, delete_source=True):
+    def ingest_to_vault(self, source_fq_path=None, model_entry=None, workflow_data=None, delete_source=True):
+        self.workflow_data = workflow_data
         model_path = model_entry.get("model_path")
         model_name = model_entry.get("model_name")
-        
+        node_type  = model_entry.get("node_type", "UNKNOWN")
+        model_url  = model_entry.get("model_url", "")
+
         print(f"{self.env.ico.get('ACT',__class__)} Validating tensor data.")
         loaded_model = self.validate_file_structure(source_fq_path)
         if not loaded_model['valid']:
             print(f"{self.env.ico.get('ERR',__class__)} {loaded_model['error']}.")
             return False
-        print(f"{self.env.ico.get('ACT',__class__)} Tensor data validated.")
 
         dest_fq_path = self.get_fq_vault_path(model_name)
         transfer_action = "Moving" if delete_source else "Copying"
@@ -191,8 +208,8 @@ class VaultManager:
 
         # Stream, fsync, read-back verify
         success, source_hash, vault_hash = self.robust_copy_and_verify(source_fq_path, dest_fq_path)
-        
-        print(f"{self.env.ico.get('KEY',__class__)} Source file hash [{source_hash}].")
+
+        print(f"{self.env.ico.get('KEY',__class__)} Active file hash [{source_hash}].")
         print(f"{self.env.ico.get('KEY',__class__)} Vaulted file hash [{vault_hash}].")
 
         if not success:
@@ -207,27 +224,40 @@ class VaultManager:
                 print(f"{self.env.ico.get('WRN',__class__)} Could not remove source file after move: {e}")
 
         print(f"{self.env.ico.get('ACT',__class__)} Writing NanoVault metadata.")
-        sidecar_entry = {
-            "hash": vault_hash,
-            "model_subfolder": model_entry["model_path"],
-            "node_type": model_entry["node_type"]
-        }
 
-        if not self.write_sidecar_entry(dest_fq_path, sidecar_entry):
+        sc = SidecarFile(
+                vault_path=self.env.vault_dir,
+                query_data=model_entry,
+                fast_hash=self.env.fast_hash)
+
+        sc.set_hash(hash_value=vault_hash)
+        sc.set_model_entry(model_entry=model_entry)
+
+        sc.add_workflow({
+                "id": self.workflow_data["id"],
+                "revision": self.workflow_data["revision"],
+                "workflow_names": [self.workflow_data["workflow_name"]]
+            })
+
+        if not sc.write_sidecar_info():
             print(f"{self.env.ico.get('ERR',__class__)} Unable to write sidecar file.")
             return False
 
         print(f"{self.env.ico.get('BOX',__class__)} File secured in NanoVault.")
         return True
 
-    def deploy_from_vault(self, model_subfolder, model_name):
+    def deploy_from_vault(self, model_subfolder=None, model_name=None):
         vault_fq_path = self.get_valid_vault_fq_path(model_name)
         if not vault_fq_path:
             print(f"{self.env.ico.get('ERR',__class__)} Vault file does not exist or metadata is corrupt")
             return False
 
-        sidecar_entry = self.read_sidecar_entry(vault_fq_path)
-        if not sidecar_entry or not os.path.exists(vault_fq_path):
+        sc = SidecarFile(
+                vault_path=self.env.vault_dir,
+                query_data={"model_name" : model_name, "model_subfolder" : model_subfolder},
+                fast_hash=self.env.fast_hash)
+        
+        if not sc.get_hash():
             print(f"{self.env.ico.get('WRN',__class__)} Vault entry for model cannot be verified.")
             return False
 
@@ -237,11 +267,11 @@ class VaultManager:
         # Stream write to active folder, fsync, read-back verify
         success, vault_hash, active_hash = self.robust_copy_and_verify(vault_fq_path, active_path)
         
-        side_hash = sidecar_entry.get('hash', 'CORRUPT_VAULT_METADATA')
-        print(f"{self.env.ico.get('KEY',__class__)} [{side_hash}] NanoVault sidecar hash.")
+        
+        print(f"{self.env.ico.get('KEY',__class__)} [{sc.get_hash()}] NanoVault sidecar hash.")
         print(f"{self.env.ico.get('KEY',__class__)} [{active_hash}] '{model_name}' active hash.")
 
-        if not success or active_hash != side_hash:
+        if not success or not sc.match_hash(active_hash):
             print(f"{self.env.ico.get('WRN',__class__)} Hash mismatch. Deleting active file.")
             if os.path.exists(active_path):
                 try:
@@ -295,3 +325,103 @@ class VaultManager:
 
         print(f"{self.env.ico.get('DONE',__class__)} Hash confirmed.")
         return True
+
+    def rebuild_vault(self, workflows_data=None, force=False):
+        print(f"{self.env.ico.get('ACT',__class__)} Starting vault metadata rebuild.")
+        vault_dir = self.env.vault_dir
+        
+        files = []
+        reply = {
+            "files" : files,
+            "total" : int(0),
+            "rebuilt" : int(0),
+            "errors"  : int(0),
+            "skipped" : int(0),
+            "message" : "Rebuild in progress."
+        }
+        
+        # 1. Iterate through each workflow from the enumerator
+        for wf in workflows_data:
+            
+            workflow_entry = {
+                "workflow_id": wf.get("workflow_id"),
+                "revision": wf.get("revision", 0),
+                "workflow_names": [wf.get("name", "Unknown_Workflow")]
+            }
+
+            # 2. Iterate through every model attached to this workflow
+            for model in wf.get("models", []):
+                model_name = model.get("model_name")
+                vp = os.path.join(vault_dir, model_name)
+                if not model_name or not os.path.exists(vp):
+                    print(self.env.ico.sep(4, 20))
+                    continue
+                    
+                query_data = {
+                    "model_name": model_name,
+                    "model_subfolder": model.get("model_path", ""),
+                    "node_type": model.get("node_type", ""),
+                    "url": model.get("model_url", "")
+                }
+                
+                # 3. Instantiate, append, and commit
+                try:
+                    sc = SidecarFile(
+                        vault_path=vault_dir,
+                        query_data=query_data,
+                        fast_hash=self.env.fast_hash
+                    )
+
+                    reply["total"] += 1
+                    vh = sc.get_hash()
+                    if vh:
+                        files.append({
+                            "model_name" : model_name,
+                            "hash_value" : vh,
+                            "rebuilt"    : False
+                            })
+                        print(f"{self.env.ico.get('BOX',__class__)} '{model_name}' Valid sidecar exists.")
+                        print(f"{self.env.ico.get('ACT',__class__)} Adding workflow entry to sidecar. {wf.get("workflow_id")}.Rev({wf.get("revision")})")
+                        sc.add_workflow(workflow_entry)
+                        print(f"{self.env.ico.get('KEY',__class__)} [{sc.get_hash()}] Sidecar hash ")
+                    
+                    if vh and not force:
+                        reply["skipped"] += 1
+                        print(f"{self.env.ico.get('BOX',__class__)} '{model_name}' Hash found in vault. Skipping calculation.")
+                        print(self.env.ico.sep(4, 20))
+                        continue
+                    else:
+                        print(f"{self.env.ico.get('ACT',__class__)} {model_name} Validating vault file structure.")
+                        loaded_model = LoadModel(self.env, vp).analyze()
+                        if loaded_model["valid"]:
+                            print(f"{self.env.ico.get('DONE',__class__)} Vault file structure valid.")
+                            print(f"{self.env.ico.get('KEY',__class__)} Forcing hash calculation.")
+                            vault_hash = self.calculate_hash(vp)
+                            print(f"{self.env.ico.get('ACT',__class__)} [{vault_hash}] Adding hash to sidecar.")
+                            sc.set_hash(vault_hash)
+                        else:
+                            print(f"{self.env.ico.get('LIGHT',__class__)} Removing corrupted file from vault '{model_name}'")
+                            sc.delete_sidecar()
+                            sc.delete_model()
+                            reply["errors"] += 1
+                            print(self.env.ico.sep(4, 20))
+                            continue
+
+                    sc.write_sidecar_info()
+                    reply["rebuilt"] += 1
+                    files.append({
+                        "model_name" : model_name,
+                        "hash_value" : vh,
+                        "rebuilt"    : True
+                        })
+                    print(f"{self.env.ico.get('BOX',__class__)} Rebuilt sidecar baseline for: {model_name}")
+                except Exception as e:
+                    print(f"{self.env.ico.get('ERR',__class__)} Failed to rebuild {model_name}: {e}")
+
+        message = f"Vault {vault_dir} rebuilt."
+        reply.update({
+            "files" : files,
+            "message" : mes        return Truesage})
+        print(f"{self.env.ico.get('DONE',__class__)} {message}")
+
+        return reply
