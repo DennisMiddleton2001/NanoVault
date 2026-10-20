@@ -27,7 +27,7 @@ class LogIcons:
             ret = f'{self.icons.get(id,__class__)}'
         return ret
     
-    def sep(self,lvl, sep_len = 100):
+    def sep(self,lvl, sep_len = 80):
         val = ["#","=","-",".","`"]
         bar = ""
         for i in range(0,sep_len):

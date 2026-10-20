@@ -264,6 +264,7 @@ class SidecarFile:
 
         if not workflow_list:
             workflow_list.append(workflow_entry)
+            self.write_sidecar_info()
             return
 
         found = False
@@ -272,10 +273,12 @@ class SidecarFile:
                 found = True
                 if workflow_name not in entry.get("workflow_names", []):
                     entry.setdefault("workflow_names", []).append(workflow_name)
+                    self.write_sidecar_info()
                 break
                 
         if not found:
             workflow_list.append(workflow_entry)
+            self.write_sidecar_info()
         
     def reset_workflows(self):
         self.sidecar_info["workflows"] = []

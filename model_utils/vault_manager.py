@@ -357,7 +357,7 @@ class VaultManager:
                         print(f"{self.env.ico.get('BOX',__class__)} '{model_name}' Valid sidecar exists.")
                         print(f"{self.env.ico.get('ACT',__class__)} Adding workflow entry to sidecar. {wf.get("workflow_id")}.Rev({wf.get("revision")})")
                         sc.add_workflow(workflow_entry)
-                        print(f"{self.env.ico.get('KEY',__class__)} [{sc.get_hash()}]")
+                        print(f"{self.env.ico.get('KEY',__class__)} [{sc.get_hash()}] Sidecar hash ")
                     
                     if vh and not force:
                         reply["skipped"] += 1
@@ -371,6 +371,8 @@ class VaultManager:
                             print(f"{self.env.ico.get('DONE',__class__)} Vault file structure valid.")
                             print(f"{self.env.ico.get('KEY',__class__)} Forcing hash calculation.")
                             vault_hash = self.calculate_hash(vp)
+                            print(f"{self.env.ico.get('ACT',__class__)} [{vault_hash}] Adding hash to sidecar.")
+                            sc.set_hash(vault_hash)
                         else:
                             print(f"{self.env.ico.get('LIGHT',__class__)} Removing corrupted file from vault '{model_name}'")
                             sc.delete_sidecar()
@@ -379,11 +381,7 @@ class VaultManager:
                             print(self.env.ico.sep(4, 20))
                             continue
 
-                    print(f"{self.env.ico.get('ACT',__class__)} [{vault_hash}] Adding hash to sidecar.")
-                    sc.set_hash(vault_hash)
-
                     sc.write_sidecar_info()
-
                     reply["rebuilt"] += 1
                     files.append({
                         "model_name" : model_name,
