@@ -18,6 +18,7 @@ from .test_sweep import AnalyzeModelsFolder
 from .load_model import LoadModel
 from .workflow import WorkflowParser
 from .workflow import WorkflowEnumerator
+from .vault_manager import VaultManager
 
 # endregion
 
@@ -40,7 +41,8 @@ class SovereignManager:
             '--list-workflows',
             '--query-metal-storage',
             '--scan-all',
-            '--config']
+            '--config',
+            '--rebuild-vault']
 
     def is_valid_command(self, command):
         return True if command in self.valid_commands else False
@@ -64,14 +66,15 @@ class SovereignManager:
 
         if '.json' in clean_path.lower():
             workflow_data = WorkflowParser(self.env, clean_path).get_required_models()
-            if not len(workflow_data["model_list"]):
+            model_list = workflow_data["model_list"]
+            if not len(model_list):
                 print(f"{self.env.ico.get('WRN',__class__)} No models found in '{clean_path}'")
                 reply = {
                     "command" : "Parse Workflow",
                     "message" : f"No models found in '{clean_path}'"
                 }
                 return reply
-        
+                
         if self.command in ['--config']:
             if self.env.print_config():
                 message = "Valid configuration found."
@@ -83,10 +86,10 @@ class SovereignManager:
                 }
         elif self.command in ['--a']:
                     print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
-                    reply = DeploymentPipeline(self.env, workflow_data).run()
+                    reply = DeploymentPipeline(env=self.env, workflow_data=workflow_data).run()
         elif self.command in ['--as']:
-                    print(f"{self.env.ico.get('ACT',__class__)} DEPLOY: '{clean_path}'")
-                    reply = DeploymentPipeline(self.env, workflow_data, spot_install = True).run()
+                    print(f"{self.env.ico.get('ACT',__class__)} SPOT DEPLOY: '{clean_path}'")
+                    reply = DeploymentPipeline(env=self.env, workflow_data=workflow_data, spot_install= True).run()
         elif self.command in ['--t']:
             print(f"{self.env.ico.get('ACT',__class__)} TRIM: '{clean_path}'")
             reply = TrimPipeline(self.env, workflow_data).run()
@@ -95,7 +98,7 @@ class SovereignManager:
             reply = PurgePipeline(self.env,workflow_data).run()
         elif self.command in ['--i']:
             print(f"{self.env.ico.get("ACT",__class__)} Starting template-driven INGEST for: {clean_path}")
-            reply = IngestPipeline(self.env, workflow_data).run()
+            reply = IngestPipeline(env=self.env, model_list=model_list, workflow_data=workflow_data).run()
         elif self.command in ['--scan-vault','--scan-active']:
             vault = True if '--scan-vault' in args_list else False
             print(f"{self.env.ico.get("ACT",__class__)} Starting scan for: {"NanoVault" if vault else "Active Configuration"}")
@@ -112,8 +115,14 @@ class SovereignManager:
             reply = LoadModel(self.env, clean_path, debug=True).analyze()
         elif self.command in ['--scan-workflow']:
             reply = WorkflowParser(self.env,args_list[1]).get_required_models()
+        elif self.command in ['--rebuild-vault']:
+            workflows_fq_path = os.path.join(self.env.comfy_ui_root, 'user/default/workflows') if len(args_list) < 2 else args_list[1]
+            workflows_data = WorkflowEnumerator(env=self.env, workflow_root=workflows_fq_path).run()
+            vm = VaultManager(self.env)
+            reply = vm.rebuild_vault(workflows_data=workflows_data, force=False)
         elif self.command in ['--list-workflows']:
-            reply = WorkflowEnumerator(self.env,args_list[1]).run()
+            workflows_fq_path = os.path.join(self.env.comfy_ui_root, 'user/default/workflows') if len(args_list) < 2 else args_list[1]
+            reply = WorkflowEnumerator(env=self.env, workflow_root=workflows_fq_path).run()
         elif self.command in ['--query-metal-storage','--scan-all']:
             vault_info  = AnalyzeModelsFolder(self.env).run(True)
             active_info = AnalyzeModelsFolder(self.env).run(False)

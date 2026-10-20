@@ -9,7 +9,7 @@ Notes: This script is intended to be run directly from an active ComfyUI venv.
 To use it, copy directly to the ComfyUI folder and run it in the live environment.
 It talks directly to Comfy and asks the question:
 
-          "In what model subfolders do custom nodes live?"
+          "What are the node type to model folder mappings?"
 
 '''
 def build_node_folder_map():

@@ -194,7 +194,7 @@ class LoadModel:
         model_info = self.check_model_fq_path()
 
         if sidecar_meta:
-            model_info.update({"sidecar_hash": sidecar_meta})
+            model_info.update({"sidecar_meta": sidecar_meta})
 
         return model_info
 

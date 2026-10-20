@@ -4,9 +4,10 @@ from .vault_manager import VaultManager
 
 class IngestPipeline:
 
-    def __init__(self, env = None, workflow_data = None):
+    def __init__(self, env = None, model_list = None, workflow_data = None):
         self.env = env
-        self.workflow_data
+        self.workflow_data = workflow_data
+        self.model_list = model_list
         self.vault = VaultManager(self.env,workflow_data=workflow_data)
     
     def run(self):

@@ -25,11 +25,12 @@ def print_usage():
     print("  --e  :  Evict! DeleteActive, DeleteVaulted(unless excluded in config.json)")
     print(f"")
     print("MODEL FILE TOOLS")
-    print("  --model       :  Print debug info for a single model file (output is large)")
-    print("  --scan-active :  Health check .safetensors in ComfyUI/models folders.")
-    print("  --scan-vault  :  Health check .safetensors in NanoVault.")
-    print("  --single-add  :  Download, vault, and install a single model")
-    print("  --single-spot :  Download and install a single model (only to active).")
+    print("  --model         :  Print debug info for a single model file (output is large)")
+    print("  --scan-active   :  Health check .safetensors in ComfyUI/models folders.")
+    print("  --scan-vault    :  Health check .safetensors in NanoVault.")
+    print("  --single-add    :  Download, vault, and install a single model")
+    print("  --single-spot   :  Download and install a single model (only to active).")
+    print("  --rebuild-vault :  Rebuilds vault metadata using existing workflows.")
     print(f"")
     print("  EXAMPLES:")
     print("         --list_workflows '../ComfyUI/user/default/workflows/'")
@@ -41,8 +42,11 @@ def print_usage():
     print("         --single-spot 'filename.safetensors' 'models_subfolder' 'https://url.com'")
     print("         --st 'vae' 'vae_volcano.safetensors'")
     print("         --sf 'https://some.url.com/path/vae_volcano.safetensors' 'vae' 'vae_volcano.safetensors'")
-    print("         --cleanup")
-    
+    print("         --rebuild-vault /path/to/workflows folder\n")
+    print("           WARNING: Vault rebuild is slow.  Rebuild vault only if changing hash methods or if the")
+    print("           sidecar format changes between versions. Delete old sidecar files before rebuilding (recommended).")
+    print("           ")
+
 #endregion
 
 

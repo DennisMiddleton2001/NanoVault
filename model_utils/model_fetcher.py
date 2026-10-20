@@ -1,5 +1,6 @@
 import os
 import subprocess
+from urllib.parse import urlparse
 
 # Manages multi-connection network operations.
 class ModelFetcher:
@@ -11,9 +12,12 @@ class ModelFetcher:
 
         download_file_path = os.path.join(self.env.staging_cache, model_name)
         print(f"{self.env.ico.get('COMM',__class__)} Starting download.")
-                
+        
+        # Extract the network location (domain) from the full URL string
+        parsed_url = urlparse(url=url)
+        domain = parsed_url.netloc
         wget_cmd = ["wget", "-c", "-O", download_file_path]
-        match url:
+        match domain:
             case "huggingface.co":
                 if len(self.env.hf_token) > 8:
                     print(f"{self.env.ico.get('KEY',__class__)} HF URL detected. Injecting Authorization header '{self.env.hf_token[:10]}...'")
@@ -30,11 +34,11 @@ class ModelFetcher:
             print(f"{self.env.ico.get('COMM',__class__)} COMMAND: {wget_cmd}.")
             print(self.env.ico.sep(4))
             subprocess_error = subprocess.run(wget_cmd, check=True)
-        except subprocess.CalledProcessError:
+        except Exception as e:
             print(f"MODEL    : {model_name}")
             print(f"DIRECTORY: {target_dir}")
             print(f"URL      : {url}")
-            print(f"ERROR    : {subprocess_error}")
+            print(f"ERROR    : Subprocess Error: {e.args}")
             download_file_path = None
         print(self.env.ico.sep(3))
         

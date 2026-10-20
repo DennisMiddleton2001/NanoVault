@@ -15,6 +15,14 @@ from model_utils.nano_arch import SovereignManager
 app = FastAPI(title="NanoVault Sanctuary")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+def get_host():
+    try:    
+        with open("config.json") as f:
+            env = json.load(f)
+    except:
+        env = None
+    return env.get("host", None) if env else None
+
 # --- THE MISSING LINK: Mount model_utils so environment.json is directly accessible ---
 app.mount("/model_utils", StaticFiles(directory=os.path.join(BASE_DIR, "model_utils")), name="model_utils")
 # Point the sub-routes directly to the web/ subdirectories
@@ -49,10 +57,15 @@ async def execute_command(request: Request):
     # VFP_02_shield: Strict Origin Validation
     origin = request.headers.get("origin")
     referer = request.headers.get("referer")
-    
+
     # Standardize the incoming origin string for comparison
     client_origin = origin if origin else (referer.rstrip('/') if referer else None)
     allowed_origins = ["http://127.0.0.1:8000", "http://localhost:8000"]
+
+    #Secret key for allowing access from LAN.
+    host = get_host()
+    if host:
+        allowed_origins.append(f"http://{host}:8000")
     
     if client_origin not in allowed_origins:
         # Returns HTTP 403 Forbidden at the network layer
@@ -96,7 +109,7 @@ async def execute_command(request: Request):
 if __name__ == "__main__":
     port = 8000
     host_id = "127.0.0.1"
-
+    
     try:
         print(f"[SYSTEM INIT] Sovereign Gateway online. Binding to {host_id}:{port}")
         uvicorn.run("main:app", host=host_id , port=port, reload=False,)
