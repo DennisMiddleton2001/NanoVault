@@ -310,7 +310,6 @@ class VaultManager:
             "total" : int(0),
             "rebuilt" : int(0),
             "errors"  : int(0),
-            "skipped" : int(0),
             "message" : "Rebuild in progress."
         }
         
@@ -327,10 +326,14 @@ class VaultManager:
             for model in wf.get("models", []):
                 model_name = model.get("model_name")
                 vp = os.path.join(vault_dir, model_name)
+                
+                # If no vault path or model, nothing to do.
                 if not model_name or not os.path.exists(vp):
-                    print(self.env.ico.sep(4, 20))
                     continue
-                    
+
+                print(f"{self.env.ico.get('ACT',__class__)} Rebuilding '{model_name}'")
+                reply["total"]
+                # Set up a query to get the sidecar data (if present).
                 query_data = {
                     "model_name": model_name,
                     "model_subfolder": model.get("model_path", ""),
@@ -338,7 +341,7 @@ class VaultManager:
                     "url": model.get("model_url", "")
                 }
                 
-                # 3. Instantiate, append, and commit
+                # Instantiate, query, append, commit.
                 try:
                     sc = SidecarFile(
                         vault_path=vault_dir,
@@ -346,56 +349,70 @@ class VaultManager:
                         fast_hash=self.env.fast_hash
                     )
 
-                    reply["total"] += 1
+                    # Add this workflow to the sidecar_data.
+                    print(f"{self.env.ico.get('ACT',__class__)} Adding workflow entry to sidecar. {wf.get("workflow_id")}.Rev({wf.get("revision")})")
+                    sc.add_workflow(workflow_entry)
+
+                    # Check for a sidecar hash.
                     vh = sc.get_hash()
-                    if vh:
-                        files.append({
-                            "model_name" : model_name,
-                            "hash_value" : vh,
-                            "rebuilt"    : False
-                            })
-                        print(f"{self.env.ico.get('BOX',__class__)} '{model_name}' Valid sidecar exists.")
-                        print(f"{self.env.ico.get('ACT',__class__)} Adding workflow entry to sidecar. {wf.get("workflow_id")}.Rev({wf.get("revision")})")
-                        sc.add_workflow(workflow_entry)
-                        print(f"{self.env.ico.get('KEY',__class__)} [{sc.get_hash()}] Sidecar hash ")
-                    
-                    if vh and not force:
-                        reply["skipped"] += 1
-                        print(f"{self.env.ico.get('BOX',__class__)} '{model_name}' Hash found in vault. Skipping calculation.")
-                        print(self.env.ico.sep(4, 20))
-                        continue
+                    print(f"{self.env.ico.get('KEY',__class__)} [{sc.get_hash()}] Sidecar hash.")
+
+                    # Validate file structure.
+                    loaded_model = LoadModel(self.env, vp).analyze()
+                    if loaded_model["valid"]:
+                        print(f"{self.env.ico.get('DONE',__class__)} Vault file structure valid.")
                     else:
-                        print(f"{self.env.ico.get('ACT',__class__)} {model_name} Validating vault file structure.")
-                        loaded_model = LoadModel(self.env, vp).analyze()
-                        if loaded_model["valid"]:
-                            print(f"{self.env.ico.get('DONE',__class__)} Vault file structure valid.")
-                            print(f"{self.env.ico.get('KEY',__class__)} Forcing hash calculation.")
-                            vault_hash = self.calculate_hash(vp)
-                            print(f"{self.env.ico.get('ACT',__class__)} [{vault_hash}] Adding hash to sidecar.")
-                            sc.set_hash(vault_hash)
+                        print(f"{self.env.ico.get('DONE',__class__)} Invalid file structure.")
+                        if loaded_model["error"].find("CONTINUE") != -1:
+                            print(f"{self.env.ico.get('ACT',__class__)} Truncated file moved to download cache.")
+                            os.rename(vp, os.path.join(self.env.staging_cache, os.path.join(self.env.staging_cache, model_name)))
+                            sc.delete_sidecar()
+                            print(self.env.ico.sep(4, 20))
+                            vh = None
                         else:
                             print(f"{self.env.ico.get('LIGHT',__class__)} Removing corrupted file from vault '{model_name}'")
                             sc.delete_sidecar()
                             sc.delete_model()
-                            reply["errors"] += 1
                             print(self.env.ico.sep(4, 20))
-                            continue
-
+                            vh = None
+                    
+                    if vh and not force:
+                        # Skip this file if not forcing hash since it has sidecar hash.
+                        print(f"{self.env.ico.get('BOX',__class__)} [{vh}] Hash found in vault. Skipping calculation.")
+                    else:
+                        # Otherwise, calculate and add it.
+                        print(f"{self.env.ico.get('KEY',__class__)} Performing hash calculation.")
+                        vh = self.calculate_hash(vp)
+                        sc.set_hash(vh)
+                        print(f"{self.env.ico.get('ACT',__class__)} [{vh}] Adding hash to sidecar.")
+                    
+                    # Update sidecar.
                     sc.write_sidecar_info()
-                    reply["rebuilt"] += 1
+
+                    if vh:
+                        reply["rebuilt"] += 1
+                    else:
+                        reply["errors"] += 1
+
                     files.append({
                         "model_name" : model_name,
                         "hash_value" : vh,
-                        "rebuilt"    : True
+                        "rebuilt"    : True if vh else False
                         })
+
                     print(f"{self.env.ico.get('BOX',__class__)} Rebuilt sidecar baseline for: {model_name}")
+                    print(self.env.ico.sep(4, 20))
                 except Exception as e:
                     print(f"{self.env.ico.get('ERR',__class__)} Failed to rebuild {model_name}: {e}")
 
-        message = f"Vault {vault_dir} rebuilt."
+        message = f"Vault {vault_dir} Rebuild completed."
+
         reply.update({
             "files" : files,
-            "message" : message})
+            "message" : message,
+            "total" : len(files)
+            })
+        
         print(f"{self.env.ico.get('DONE',__class__)} {message}")
 
         return reply
