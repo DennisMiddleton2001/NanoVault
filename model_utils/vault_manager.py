@@ -363,9 +363,13 @@ class VaultManager:
                         print(f"{self.env.ico.get('DONE',__class__)} Vault file structure valid.")
                     else:
                         print(f"{self.env.ico.get('DONE',__class__)} Invalid file structure.")
-                        if loaded_model["error"].find("CONTINUE") != -1:
-                            print(f"{self.env.ico.get('ACT',__class__)} Truncated file moved to download cache.")
-                            os.rename(vp, os.path.join(self.env.staging_cache, os.path.join(self.env.staging_cache, model_name)))
+                        if loaded_model["error"].find("CONTINUE_DOWNLOAD") != -1:
+                            print(f"{self.env.ico.get('ACT',__class__)} Truncated file retriable. Moving to download cache for re-delpoyment.")
+                            src_fq_path = os.path.join(sc.fq_model_path)
+                            dst_fq_path = os.path.join(self.env.staging_cache, model_name)
+                            success, source_hash, vault_hash = self.robust_copy_and_verify(src_fq_path, dst_fq_path)
+                            
+                            sc.delete_model()
                             sc.delete_sidecar()
                             print(self.env.ico.sep(4, 20))
                             vh = None
