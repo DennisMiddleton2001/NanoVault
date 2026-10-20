@@ -2,12 +2,31 @@
   "application": "NanoVault",
   "version": "1.1.0",
   "paths": {
-    "comfy_ui_root": "../ComfyUI",
-    "vault_dir": "",
-    "staging_cache": ""
+    "comfy_ui_root": "/home/darth-tedious/.sovereign-ai/ComfyUI",
+    "vault_dir": "/run/media/darth-tedious/5eb65f8c-6e86-46ab-beaa-c2bec31b620c/NanoVault",
+    "staging_cache": "/mnt/nvme-storage/download_cache"
   },
   "fast_hash": true,
   "tokens": {},
   "exclude_from_purge": [
+    "10Eros_v1.2_fp8mixed_learned.safetensors",
+    "10Eros_v1_Delta.safetensors",
+    "flux-2-klein-base-9b-fp8.safetensors",
+    "flux2-klein-9b-uncensored-q8_0.gguf",
+    "gemma-3-12b-it-ablit-norms-biproj-fp8mixed.safetensors",
+    "gemma4-12b-with-proj-ltx-2.5-comfy-int8-convrot.safetensors",
+    "gemma4_e2b_it_bf16.safetensors",
+    "gemma_3_12B_it_fp4_mixed.safetensors",
+    "ltx-2.3-22b-dev-fp8.safetensors",
+    "ltx-2.3-22b-distilled-fp8.safetensors",
+    "ltx-2.5-22b-distilled-transformer-comfy-int8-convrot.safetensors",
+    "lustifyNSFWCheckpoint_v10Krea2.safetensors",
+    "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+    "moodyKrea2Mix_v70.safetensors",
+    "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+    "qwen_3_8b_fp8mixed.safetensors",
+    "seedvr2_ema_7b_fp16.safetensors",
+    "sulphur_distill_fp8.safetensors",
+    "wan2.2_i2v_high_noise_14B_fp8_scaled.safetensors"
   ]
 }

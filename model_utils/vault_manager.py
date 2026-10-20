@@ -139,15 +139,17 @@ class VaultManager:
         return active_fq_path
 
     def get_valid_vault_fq_path(self, model_name):
+        fq_vault_path = self.get_fq_vault_path(model_name)
         sc = SidecarFile(
             vault_path=self.env.vault_dir,
             query_data={"model_name" : model_name},
             fast_hash=self.env.fast_hash
             )
-        if not sc.get_hash():
+        
+        if not sc.get_hash() or not os.path.exists(sc.fq_model_path):
             return None
 
-        return self.get_fq_vault_path(model_name)
+        return fq_vault_path
 
     def free_vault_file(self, model_name):
         vault_fq_path = self.get_fq_vault_path(model_name)
@@ -161,7 +163,7 @@ class VaultManager:
         except Exception:
             pass
 
-    def ingest_to_vault(self, source_fq_path, model_entry=None, workflow_data=None, delete_source=True):
+    def ingest_to_vault(self, source_fq_path=None, model_entry=None, workflow_data=None, delete_source=True):
         self.workflow_data = workflow_data
         model_path = model_entry.get("model_path")
         model_name = model_entry.get("model_name")
@@ -173,7 +175,6 @@ class VaultManager:
         if not loaded_model['valid']:
             print(f"{self.env.ico.get('ERR',__class__)} {loaded_model['error']}.")
             return False
-        print(f"{self.env.ico.get('ACT',__class__)} Tensor data validated.")
 
         dest_fq_path = self.get_fq_vault_path(model_name)
         transfer_action = "Moving" if delete_source else "Copying"
@@ -219,7 +220,7 @@ class VaultManager:
         print(f"{self.env.ico.get('BOX',__class__)} File secured in NanoVault.")
         return True
 
-    def deploy_from_vault(self, model_subfolder, model_name):
+    def deploy_from_vault(self, model_subfolder=None, model_name=None):
         vault_fq_path = self.get_valid_vault_fq_path(model_name)
         if not vault_fq_path:
             print(f"{self.env.ico.get('ERR',__class__)} Vault file does not exist or metadata is corrupt")

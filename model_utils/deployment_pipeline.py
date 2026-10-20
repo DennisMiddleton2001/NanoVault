@@ -10,6 +10,7 @@ class DeploymentPipeline:
     def __init__(self, env = None, workflow_data = None, spot_install = False):
 
         self.env = env
+        self.workflow_data = workflow_data
         self.model_list = workflow_data.get("model_list", [])
         self.id = workflow_data.get("id", 0)
         self.revision = workflow_data.get("revision", 0)
@@ -112,7 +113,7 @@ class DeploymentPipeline:
 
             # Skip vault ingest if spot install.
             if not self.spot_install:
-                if not self.vault.ingest_to_vault(staging_fq_path, model_entry, delete_source=True):
+                if not self.vault.ingest_to_vault(source_fq_path=staging_fq_path, model_entry=model_entry, workflow_data=self.workflow_data ,delete_source=True):
                     print(f"{self.env.ico.get("ERR",__class__)} Ingestion failed.")
                     response["failed"].append(model_name)
                     print(self.env.ico.sep(2))
