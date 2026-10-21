@@ -61,25 +61,6 @@ class VaultDatabase:
             return None
         return self.vault_sequence
 
-
-class SidecarFile:
-    def __init__(
-            self,
-            vault_path,
-            query_data={},
-            fast_hash=True
-            ):
-        
-        self.vault = VaultDatabase(vault_path, fast_hash)
-        
-        # Extract model_name to locate the sidecar file in the vault.
-        # Handles both sparse queries ({"model_name": "..."}) and nested queries
-        model_name = query_data.get("model_name") or query_data.get("model_entry", {}).get("model_name")
-
-        if not model_name:
-            raise ValueError("model_name is required in the query payload.")
-
-
 class SidecarFile:
     def __init__(
             self,
@@ -247,7 +228,6 @@ class SidecarFile:
         self.sidecar_info["model_entry"].pop("active_size", "0")
         self.sidecar_info["model_entry"].pop("vault_size", "0")
 
-
     def add_workflow(self, workflow_entry):
         if not workflow_entry:
             return
@@ -268,6 +248,7 @@ class SidecarFile:
             return
 
         found = False
+
         for entry in workflow_list:
             if entry.get("workflow_id") == workflow_id and entry.get("revision") == revision:
                 found = True
@@ -279,6 +260,7 @@ class SidecarFile:
         if not found:
             workflow_list.append(workflow_entry)
             self.write_sidecar_info()
+        return
         
     def reset_workflows(self):
         self.sidecar_info["workflows"] = []

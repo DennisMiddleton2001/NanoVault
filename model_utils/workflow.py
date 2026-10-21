@@ -15,7 +15,7 @@ class WorkflowEnumerator:
         all_workflows = list()
 
         for root, _, files in os.walk(self.workflow_root):
-
+            files.sort(key=str.lower)
             for file in files:
                 if file.lower().endswith(".json"):
 
