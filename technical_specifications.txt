@@ -74,9 +74,14 @@ The following methods are used to confirm validity of downloaded files.
 Vault Specifications
 ====================
 Vault storage should be on a separate disk from your OS.  The goal is to treat the vault as a
-reliable, persistent, authoritative source of models.
+reliable, persistent, authoritative local source of models.  The vault sidecar metadata contains file's 
+URL(if present in the workflow), along with referenced workflow info and a few other "goodies".
+If changing fast_hash from default of "true" to "false", running "nv.py --rebuild-vault" will re-calculate
+the model hash values for all models.  This will also create new sidecar values with file extensions 
+matching the hash type (".xxh128" for fast, or ".sha256" for slow).  It's recommended, but not required, to 
+delete the sidecar files that are not in use to prevent confusion.
 
-    Valt Disk Recommendations:
+    Valt Disk Recommendations (inexpensive):
       1. USB v.4 external SATA.
       2. Local NAS storage.
       3. Whatever large inexpensive storage you have.
@@ -89,15 +94,33 @@ reliable, persistent, authoritative source of models.
       4. Validate vaulted file's hash against original file hash.
       5. Create a sidecar file containing the hash and write it to the NanoVault folder(see exammple below).
 
-        ```birefnet.safetensors.xxh128```
-        {
-            "hash": "4724a411e275159ab90473d5cda42e96",
-            "model_subfolder": "background_removal",
-            "node_type": "LoadBackgroundRemovalModel"
-        }
+          ```FILENAME: birefnet.safetensors.xxh128```
+            {
+                "vault_data": {
+                    "vault_id": "03d6ce80-61a5-4dd2-885d-c4077c1582d0",
+                    "vault_sequence": 29725,
+                    "vault_hash_type": "xxh128",
+                    "fast_hash": true,
+                    "vault_dts": "2026-10-19 00:32:18.308962"
+                },
+                "model_entry": {
+                    "node_type": "LoadBackgroundRemovalModel",
+                    "model_name": "birefnet.safetensors",
+                    "model_path": "background_removal",
+                    "model_url": "https://huggingface.co/Comfy-Org/BiRefNet/resolve/main/background_removal/birefnet.safetensors"
+                },
+                "workflows": [
+                    {
+                        "id": "afd7ae55-5ffe-481f-b965-5ec4f4f86eee",
+                        "revision": 0,
+                        "workflow_names": [
+                            "/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/BG_REMOVAL_BIREF.json"
+                        ]
+                    }
+                ],
+                "hash_value": "4724a411e275159ab90473d5cda42e96"
+            }
 
-        NOTE:  The model_subfolder and node_type are overridden by workflow during deployment, but the values are
-               reliable unless the file is ingested manually via "--single-add".
 
 Server API Logs
 ===============
@@ -169,50 +192,50 @@ Server API Logs
     EXAMPLE 3: In this example, 423MiB was ingested into the vault and freed from the ComfyUI/models folder 
                with the "--t" (trim) option. The ingest/trim completed in a few milliseconds.
 
-      ========================================
-      [START]   : 2026-09-17 03:43:28.230841
-      [COMMAND] : ['--t', '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/EDIT_BG_REMOVE.json']
-      [END]     : 2026-09-17 03:43:28.245499
-      ========================================
-      {
-        "command": "TrimPipeline",
-        "attempted": 1,
-        "successful": 1,
-        "active": [],
-        "download": [],
-        "vault": [
-          "birefnet.safetensors"
-        ],
-        "failed": [],
-        "purged": [],
-        "excluded": [],
-        "message": "Trim successful."
-      }
-      ========================================
+        ========================================
+        [START]   : 2026-09-17 03:43:28.230841
+        [COMMAND] : ['--t', '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/EDIT_BG_REMOVE.json']
+        [END]     : 2026-09-17 03:43:28.245499
+        ========================================
+        {
+          "command": "TrimPipeline",
+          "attempted": 1,
+          "successful": 1,
+          "active": [],
+          "download": [],
+          "vault": [
+            "birefnet.safetensors"
+          ],
+          "failed": [],
+          "purged": [],
+          "excluded": [],
+          "message": "Trim successful."
+        }
+        ========================================
 
     EXAMPLE 4: Once a model is vaulted, if you add the workflow back to active with "--a" or "--as", 
                it is restored using the vault as the authoritative source.  Total deployment time, 1 second.
 
-      ========================================
-      [START]   : 2026-09-17 03:43:32.850665
-      [COMMAND] : ['--as', '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/EDIT_BG_REMOVE.json']
-      [END]     : 2026-09-17 03:43:33.935773
-      ========================================
-      {
-        "command": "SpotDeploymentPipeline",
-        "attempted": 1,
-        "successful": 1,
-        "active": [],
-        "download": [],
-        "vault": [
-          "birefnet.safetensors"
-        ],
-        "failed": [],
-        "purged": [],
-        "excluded": [],
-        "message": "Deployment successful."
-      }
-      ========================================
+        ========================================
+        [START]   : 2026-09-17 03:43:32.850665
+        [COMMAND] : ['--as', '/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/EDIT_BG_REMOVE.json']
+        [END]     : 2026-09-17 03:43:33.935773
+        ========================================
+        {
+          "command": "SpotDeploymentPipeline",
+          "attempted": 1,
+          "successful": 1,
+          "active": [],
+          "download": [],
+          "vault": [
+            "birefnet.safetensors"
+          ],
+          "failed": [],
+          "purged": [],
+          "excluded": [],
+          "message": "Deployment successful."
+        }
+        ========================================
 
 
 ADVANCED:
@@ -227,33 +250,33 @@ curl -X POST "http://127.0.0.1:8000/api/execute" \
      -H "Origin: http://127.0.0.1:8000" \
      -d '{"command": ["--as", "/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/video_minimax_h3_i2v.json"]}'
 
-Results:
-{
-  "status": "SUCCESS",
-  "command_echo": [
-    "--as",
-    "/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/video_minimax_h3_i2v.json"
-  ],
-  "retval": {
-    "command": "SpotDeploymentPipeline",
-    "attempted": 5,
-    "successful": 5,
-    "active": [
-      "minimax_h3_video_vae_fp16.safetensors",
-      "minimax_h3_audio_vae_fp32.safetensors",
-      "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
-      "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
-      "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
-    ],
-    "download": [],
-    "vault": [],
-    "failed": [],
-    "purged": [],
-    "excluded": [],
-    "message": "Deployment successful."
-  },
-  "message": "Successfully executed --as on /home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/video_minimax_h3_i2v.json"
-}
+  Results:
+        {
+          "status": "SUCCESS",
+          "command_echo": [
+            "--as",
+            "/home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/video_minimax_h3_i2v.json"
+          ],
+          "retval": {
+            "command": "SpotDeploymentPipeline",
+            "attempted": 5,
+            "successful": 5,
+            "active": [
+              "minimax_h3_video_vae_fp16.safetensors",
+              "minimax_h3_audio_vae_fp32.safetensors",
+              "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+              "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+              "minimax_h3_fl2v_turbo_8step_v1.0_comfyui_bf16.safetensors"
+            ],
+            "download": [],
+            "vault": [],
+            "failed": [],
+            "purged": [],
+            "excluded": [],
+            "message": "Deployment successful."
+          },
+          "message": "Successfully executed --as on /home/darth-tedious/.sovereign-ai/ComfyUI/user/default/workflows/video_minimax_h3_i2v.json"
+        }
 
 CONCLUSION
 ==========
