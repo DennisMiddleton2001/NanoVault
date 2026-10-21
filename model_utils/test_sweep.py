@@ -48,39 +48,42 @@ class AnalyzeModelsFolder:
         self.target_dir = self.env.active_root if not vault else self.env.vault_dir
         group = "vault" if vault else "active"
         invalid_tensors = list()
+        unchecked_tensors = list()
         total_size = 0
         invalid_count = 0
 
-        supported_extensions = (".safetensors", ".gguf")
-
         for root, _, files in os.walk(self.target_dir):
             for file in files:
-                # endswith() natively supports checking against a tuple
-                if file.lower().endswith(supported_extensions):
-                    fq_path = os.path.join(root, file)
-                    loader = LoadModel(self.env, fq_path)
+                fq_path = os.path.join(root, file)
+                loader = LoadModel(self.env, fq_path)
 
-                    if vault:
-                        entry = loader.check_vault_model(file)
-                    else:
-                        entry = loader.check_model_fq_path(fq_path)
+                if not file.endswith(loader.supported_extensions):
+                    continue
 
-                    total_size += entry['size']
+                if vault:
+                    entry = loader.check_vault_model(file)
+                else:
+                    entry = loader.check_model_fq_path(fq_path)
 
-                    if not entry['valid']:
-                        invalid_tensors.append(file)
-                        invalid_count += 1
+                total_size += entry['size']
 
-                    self.manifest.append(entry)
-        
-        status = {f"{group}_usage" : total_size, 
+                if entry['status'] in ["unchecked"]:
+                    unchecked_tensors.append(file)
+                elif not entry['valid']:
+                    invalid_tensors.append(file)
+
+                self.manifest.append(entry)
+
+        status = {
+            f"{group}_usage" : total_size, 
             group : self.manifest, 
             "errors" : {
-                "invalid_count"   :invalid_count,
-                "invalid_tensors" :invalid_tensors
-                }
+                "invalid_count"   : len(invalid_tensors),
+                "invalid_tensors" : invalid_tensors,
+                "unchecked_count" : len(unchecked_tensors),
+                "unchecked_tensors" : unchecked_tensors
+            }
         }
-
 
         return status
 

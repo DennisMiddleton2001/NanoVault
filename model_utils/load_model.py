@@ -170,6 +170,7 @@ class LoadModel:
         self.env = env
         self.file_path = file_path
         self.debug = debug
+        self.supported_extensions = (".safetensors", ".gguf")
 
     def print_json(self, headers):
         output = json.dumps(headers, indent=4)
@@ -219,22 +220,22 @@ class LoadModel:
                  raise ValueError("File not found.")
 
             model_entry["size"] = os.path.getsize(self.file_path)
-            if model_entry["size"] < 1024:
-                 raise ValueError("Not a tensor file.")
 
             ext = os.path.splitext(self.file_path)[1].lower()
+
+            if model_entry["size"] < 65536:
+                if ext.endswith(self.supported_extensions):
+                    raise ValueError("Not a tensor file.")
 
             # --- ROUTER LOGIC ---
             if ext == ".safetensors":
                 checker = SafetensorCheck(self.file_path, self.debug)
                 model_entry = checker.verify(model_entry)
-                
             elif ext == ".gguf":
                 checker = GgufCheck(self.file_path, self.debug)
                 model_entry = checker.verify(model_entry)
-
             else:
-                if self.debug and self.env and hasattr(self.env, 'ico'):
+                if self.debug:
                     print(f"{self.env.ico.get('WRN', __class__)} Format {ext} unsupported for truncation check.")
                 model_entry["valid"] = True
                 model_entry["status"] = "unchecked"
