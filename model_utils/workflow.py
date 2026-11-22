@@ -15,6 +15,7 @@ class WorkflowEnumerator:
         all_workflows = list()
 
         for root, _, files in os.walk(self.workflow_root):
+            workflow_entry = None
             files.sort(key=str.lower)
             for file in files:
                 if file.lower().endswith(".json"):
@@ -37,9 +38,11 @@ class WorkflowEnumerator:
                         worflow_entry["vault_size"] += m["vault_size"]
                         worflow_entry["active_size"] += m["active_size"]
 
+                    if workflow_data.get("id", None):
+                        all_workflows.append(worflow_entry)
+
                 else:
                     continue
-                all_workflows.append(worflow_entry)
         
         return all_workflows
            
@@ -83,13 +86,14 @@ class WorkflowParser:
         try:
             with open(self.fq_path, 'r') as f:
                 self.workflow = json.load(f)
-            self.id       = self.workflow["id"]
-            self.revision = self.workflow["revision"]
         except Exception as e:
-            print(f"{self.env.ico.get('ERR')}Failed to load workflow JSON from '{self.fq_path}': {e}")
             self.workflow = {}
 
         self.workflow_name = self.fq_path
+        self.id       = self.workflow.get("id", "")
+        self.revision = self.workflow.get("revision", "")
+        if not self.id:
+            self.workflow = {}
 
         workflow_data = {
             "id": self.id, 

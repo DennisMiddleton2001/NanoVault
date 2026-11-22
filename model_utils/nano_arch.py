@@ -39,6 +39,7 @@ class SovereignManager:
             '--scan-vault',
             '--scan-workflow',
             '--list-workflows',
+            '--audit-model',
             '--query-metal-storage',
             '--scan-all',
             '--config',
@@ -94,7 +95,7 @@ class SovereignManager:
             print(f"{self.env.ico.get('ACT',__class__)} TRIM: '{clean_path}'")
             reply = TrimPipeline(self.env, workflow_data).run()
         elif self.command in ['--e']:
-            print(f"{self.env.ico.get("ACT",__class__)} Starting template-driven PURGE for: {clean_path}")
+            print(f"{self.env.ico.get("ACT",__class__)} Starting template-driven PURGE for: '{clean_path}'")
             reply = PurgePipeline(self.env,workflow_data).run()
         elif self.command in ['--i']:
             print(f"{self.env.ico.get("ACT",__class__)} Starting template-driven INGEST for: {clean_path}")
@@ -120,6 +121,16 @@ class SovereignManager:
             workflows_data = WorkflowEnumerator(env=self.env, workflow_root=workflows_fq_path).run()
             vm = VaultManager(self.env)
             reply = vm.rebuild_vault(workflows_data=workflows_data, force=False)
+        elif self.command in ['--audit-model']:
+            model_name = args_list[1] if argc > 1 else None
+            workflows_fq_path = os.path.join(self.env.comfy_ui_root, 'user/default/workflows') if len(args_list) < 3 else args_list[2]
+            workflows_data = WorkflowEnumerator(env=self.env, workflow_root=workflows_fq_path).run()
+            vm = VaultManager(self.env)
+            reply = {
+                "workflows_path" : workflows_fq_path,
+                "model_name"     : model_name,
+                "report_data"    : vm.audit_model(model_name=model_name, workflows_data=workflows_data)
+            }
         elif self.command in ['--list-workflows']:
             workflows_fq_path = os.path.join(self.env.comfy_ui_root, 'user/default/workflows') if len(args_list) < 2 else args_list[1]
             reply = WorkflowEnumerator(env=self.env, workflow_root=workflows_fq_path).run()

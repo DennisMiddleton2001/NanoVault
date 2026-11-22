@@ -420,3 +420,24 @@ class VaultManager:
         print(f"{self.env.ico.get('DONE',__class__)} {message}")
 
         return reply
+
+    def audit_model(self, model_name=None, workflows_data=None):
+        reply = {
+            "model_name" : model_name,
+            "reference_count" : int(0),
+            "workflows"  : []
+        }
+
+        for wf in workflows_data:
+            for model in wf.get("models", []):
+                if model.get("model_name") == model_name:
+                    print(f"{self.env.ico.get('ACT',__class__)} Found '{model_name}' in workflow '{wf.get('name')}'")
+                    reply["workflows"].append(wf)
+                    reply["reference_count"] = len(reply["workflows"])
+
+        if not workflows_data or not len(workflows_data) or not model_name or not len(model_name):
+            return reply
+
+        return reply
+
+
