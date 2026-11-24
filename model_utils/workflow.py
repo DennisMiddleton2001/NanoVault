@@ -126,8 +126,8 @@ class WorkflowParser:
         }
 
         for model in workflow_data["model_list"]:
-            # If model type is in the mappings, use it, otherwise use the template's model.
-            if model["model_path"] == "models":
+            # If model path is NOT in the workflow, detect via the node type and assign the folder.
+            if model["model_path"] == "":
                 model.update({"model_path" : self.NODE_TYPE_TO_FOLDER.get(model["node_type"])})
             n = model.get("model_name", "")
 
@@ -138,10 +138,9 @@ class WorkflowParser:
             model.update({"vault_size"  : vault_size})
 
         if not len(workflow_data["model_list"]):
-            pass
-            # This workflow has no models.abs
-            # It's possible, but let's keep an eye on it.
+            # It's possible, but could be parsing bug - keep an eye on it.
             # print(f"{self.env.ico.get("WRN")}No models found in '{self.fq_path}' - report if this is a bug.")
+            pass
         
         return workflow_data
 
