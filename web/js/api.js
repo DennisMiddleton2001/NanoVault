@@ -44,6 +44,18 @@ export async function runPipeline(flag, fqPath) {
   return await executeCommand([flag, fqPath]);
 }
 
+/**
+ * Runs reverse model lookup via --audit-model.
+ * Sends ["--audit-model", modelName] or ["--audit-model", modelName, workflowPath].
+ */
+export async function auditModel(modelName, workflowPath = '') {
+  const args = ['--audit-model', modelName];
+  if (workflowPath && workflowPath.trim()) {
+    args.push(workflowPath.trim());
+  }
+  return await executeCommand(args);
+}
+
 async function loadComfyPath() {
     try {
         const response = await fetch('/api/config/workflow-path');

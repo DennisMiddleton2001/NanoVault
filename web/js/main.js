@@ -1,5 +1,5 @@
-import { fetchWorkflows, fetchMetalStorage, runPipeline } from './api.js';
-import { formatBytes, evaluateWorkflowStatus, parsePipelineResponse } from './parser.js';
+import { fetchWorkflows, fetchMetalStorage, runPipeline, auditModel } from './api.js';
+import { formatBytes, evaluateWorkflowStatus, parsePipelineResponse, parseModelAuditResponse } from './parser.js';
 import { NanoVaultQueue } from './queue.js';
 import { buildModelInspectorData } from './ui.js';
 
@@ -30,7 +30,7 @@ createApp({
       .catch(err => console.error('Fetch failed:', err));
     
 
-    // ... rest of your setup logic remains unchanged
+    // Core dashboard state
     const workflows = ref([]);
     const activeSize = ref('0 B');
     const vaultSize = ref('0 B');
@@ -38,6 +38,11 @@ createApp({
     const executionLogs = ref([]);
     const toasts = ref([]);
     const isRefreshing = ref(false);
+
+    // Reverse model lookup (audit) state
+    const auditedModel = ref(null);
+    const highlightedWorkflows = ref([]);
+    const isAuditing = ref(false);
 
     // Queue state
     const activeTask = ref(null);
@@ -89,6 +94,31 @@ createApp({
       const container = document.querySelector('.overflow-y-auto.font-mono');
       if (container) container.scrollTop = container.scrollHeight;
     };
+
+    const copyLogEntry = async (entry) => {
+          const lines = [
+            `[${entry.statusText}] ${entry.command} — ${entry.target} (${entry.timestamp})`
+          ];
+
+          if (entry.message) {
+            lines.push(entry.message);
+          }
+
+          if (Array.isArray(entry.categories) && entry.categories.length > 0) {
+            entry.categories.forEach(cat => {
+              lines.push('');
+              lines.push(`${cat.label.toUpperCase()} (${cat.items.length}):`);
+              cat.items.forEach(item => lines.push(`• ${item}`));
+            });
+          }
+
+          try {
+            await navigator.clipboard.writeText(lines.join('\n'));
+            addToast("Copied", `${entry.command} result copied to clipboard.`);
+          } catch (err) {
+            addToast("Error", "Failed to copy result to clipboard.");
+          }
+        };
 
     // Initialize the serial queue engine
     const queueEngine = new NanoVaultQueue(
@@ -156,7 +186,8 @@ createApp({
     const inspectorModal = ref({
       isOpen: false,
       title: '',
-      content: ''
+      content: '',
+      items: []
     });
 
     const inspectWorkflow = (wf) => {
@@ -178,7 +209,8 @@ createApp({
       inspectorModal.value = {
         isOpen: true,
         title: `Model Dependencies: ${wf.name}`,
-        content: summary
+        content: summary,
+        items: details
       };
     };
 
@@ -193,6 +225,65 @@ createApp({
 
     const closeInspectorModal = () => {
       inspectorModal.value.isOpen = false;
+    };
+
+    // Reverse model lookup helpers
+    const isWorkflowHighlighted = (wfName) => {
+      return highlightedWorkflows.value.includes(wfName);
+    };
+
+    const clearModelAudit = () => {
+      auditedModel.value = null;
+      highlightedWorkflows.value = [];
+    };
+
+    const runModelAudit = async (modelName) => {
+      if (!modelName || typeof modelName !== 'string' || isAuditing.value) return;
+
+      const cleanName = modelName.trim();
+      if (!cleanName) return;
+
+      isAuditing.value = true;
+      try {
+        const raw = await auditModel(cleanName, workflowPath.value);
+
+        if (raw.status === 'SUCCESS' && raw.retval) {
+          const parsed = parseModelAuditResponse(raw.retval);
+
+          auditedModel.value = parsed.modelName;
+          highlightedWorkflows.value = parsed.dependentWorkflowNames;
+          lastResult.value = `retval: ${JSON.stringify(raw.retval)}`;
+
+          executionLogs.value.unshift({
+            command: parsed.command,
+            target: parsed.modelName,
+            statusText: parsed.statusText,
+            statusClass: parsed.statusClass,
+            badgeClass: parsed.badgeClass,
+            message: parsed.message,
+            ratio: parsed.ratio,
+            categories: parsed.categories,
+            timestamp: new Date().toLocaleTimeString()
+          });
+
+          // Close the inspector modal if the user clicked a model from inside it
+          if (inspectorModal.value.isOpen) {
+            inspectorModal.value.isOpen = false;
+          }
+
+          addToast("Model Audit Complete", `${parsed.modelName}: ${parsed.refCount} workflow(s) found.`);
+          scrollToTop();
+        } else {
+          const errMsg = raw.message || 'Audit command failed';
+          lastResult.value = `ERROR: ${errMsg}`;
+          addToast("Audit Error", errMsg, 5000);
+        }
+      } catch (err) {
+        lastResult.value = `ERROR: ${err.message}`;
+        addToast("Audit Error", err.message || "Failed to audit model.", 5000);
+      } finally {
+        isAuditing.value = false;
+      }
     };
 
     const loadWorkflows = async () => {
@@ -262,7 +353,14 @@ createApp({
       copyInspectorContent,
       closeInspectorModal,
       inspectWorkflow,
-      queryMetalStorage
+      queryMetalStorage,
+      auditedModel,
+      highlightedWorkflows,
+      isAuditing,
+      runModelAudit,
+      clearModelAudit,
+      copyLogEntry,
+      isWorkflowHighlighted
     };
   }
 }).mount('#app');

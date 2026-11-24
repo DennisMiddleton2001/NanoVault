@@ -53,10 +53,6 @@ export function evaluateWorkflowStatus(workflow) {
 }
 
 /**
- * Normalizes and categorizes pipeline execution responses.
- * Empty arrays are omitted.
- */
-/**
  * Resolves source buckets into human-readable action summaries
  * based on the active pipeline opcode.
  */
@@ -185,6 +181,72 @@ export function parsePipelineResponse(res) {
       : (isPartial ? 'bg-amber-950 text-amber-400 border border-amber-800' : 'bg-rose-950 text-rose-400 border border-rose-800'),
     ratio: `${res.successful || 0}/${res.attempted || 0}`,
     message: res.message || '',
+    categories
+  };
+}
+
+/**
+ * Normalizes --audit-model response metadata into the standard telemetry log shape
+ * and extracts dependent workflow names for left-pane highlighting.
+ */
+export function parseModelAuditResponse(rawRetval) {
+  const report = rawRetval?.report_data || rawRetval;
+
+  if (!report) {
+    return {
+      command: 'ModelAudit',
+      modelName: 'Unknown Model',
+      refCount: 0,
+      dependentWorkflowNames: [],
+      statusText: 'FAILED',
+      statusClass: 'border-rose-500/60',
+      badgeClass: 'bg-rose-950 text-rose-400 border border-rose-800',
+      ratio: '0 refs',
+      message: 'Empty audit response received from daemon.',
+      categories: []
+    };
+  }
+
+  const modelName = report.model_name || rawRetval?.model_name || 'Unknown Model';
+  const workflows = Array.isArray(report.workflows) ? report.workflows : [];
+  const refCount = typeof report.reference_count === 'number' ? report.reference_count : workflows.length;
+  const dependentWorkflowNames = workflows.map(wf => wf.name).filter(Boolean);
+
+  const formattedItems = workflows.map(wf => {
+    const matchingNodes = (wf.models || []).filter(m => m.model_name === modelName);
+    const nodeSummary = matchingNodes.length > 0
+      ? matchingNodes.map(m => `${m.node_type}/${m.model_path}`).join(', ')
+      : 'referenced';
+
+    return `${wf.name} [${nodeSummary}] — Active: ${formatBytes(wf.active_size)}`;
+  });
+
+  const categories = formattedItems.length > 0
+    ? [
+        {
+          key: 'audit_workflows',
+          label: `Dependent Workflows`,
+          items: formattedItems,
+          borderClass: 'border-cyan-500',
+          textClass: 'text-cyan-400'
+        }
+      ]
+    : [];
+
+  return {
+    command: 'ModelAudit',
+    modelName,
+    refCount,
+    dependentWorkflowNames,
+    statusText: refCount > 0 ? 'AUDIT' : 'UNREFERENCED',
+    statusClass: refCount > 0 ? 'border-cyan-500/60' : 'border-amber-500/60',
+    badgeClass: refCount > 0
+      ? 'bg-cyan-950 text-cyan-400 border border-cyan-800'
+      : 'bg-amber-950 text-amber-400 border border-amber-800',
+    ratio: `${refCount} ${refCount === 1 ? 'ref' : 'refs'}`,
+    message: refCount > 0
+      ? `Model referenced by ${refCount} workflow${refCount === 1 ? '' : 's'}.`
+      : `No workflows in the current path reference ${modelName}.`,
     categories
   };
 }
