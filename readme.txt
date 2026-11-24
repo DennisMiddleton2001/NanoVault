@@ -1,5 +1,11 @@
-NanoVault Setup Guide (Python 3.12)
-===================================
+Automated Installation
+==========================================
+For Linux, run linux_install.sh from bash command.
+For Windows, run windows_install.ps1
+
+
+Manual NanoVault Setup Guide (Python 3.12)
+==========================================
 Before you begin, please refer to the technical_specifications.txt file for NanoVault.
 
 1. Prerequisites
