@@ -1,11 +1,11 @@
 {
-    "CheckpointLoaderSimple": "checkpoints",
-    "LoraLoader": "loras",
-    "CLIPLoader": "text_encoders",
     "UNETLoader": "diffusion_models",
     "DualCLIPLoader": "text_encoders",
-    "CLIPVisionLoader": "clip_vision",
+    "CLIPLoaderGGUF" : "clip",
+    "LTXLoraStackAV": "loras",
+    "LTXVAudioVAELoader": "vae",
+    "LTXAVTextEncoderLoader": "clip",
+    "LTXVGemmaCLIPModelLoader": "clip",
     "unCLIPCheckpointLoader": "checkpoints",
-    "CheckpointLoader": "configs",
-    "LoraLoaderModelOnly": "loras"
+    "ModelPreviewOverrideKJ": "vae_approx"
 }

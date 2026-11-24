@@ -35,8 +35,8 @@ class WorkflowEnumerator:
                     }
 
                     for m in workflow_data["model_list"]:
-                        worflow_entry["vault_size"] += m["vault_size"]
-                        worflow_entry["active_size"] += m["active_size"]
+                        worflow_entry["vault_size"] += m.get("vault_size",0)
+                        worflow_entry["active_size"] += m.get("active_size",0)  
 
                     if workflow_data.get("id", None):
                         all_workflows.append(worflow_entry)
@@ -56,17 +56,15 @@ class WorkflowParser:
         # Use known path mappings for ComfyUI node types to their respective model folders
         self.NODE_TYPE_TO_FOLDER = {
             "CheckpointLoaderSimple": "checkpoints",
-            "UNETLoader": "unet",
-            "VAELoader": "vae",
-            "LTXVAudioVAELoader": "vae",
-            "LoraLoader": "loras",
-            "LTXLoraStackAV": "loras",
-            "ControlNetLoader": "controlnet",
-            "LatentUpscaleModelLoader": "upscale_models",
+            "CheckpointLoader": "configs",
             "CLIPVisionLoader": "clip_vision",
             "CLIPLoader" : "clip",
-            "LTXAVTextEncoderLoader": "clip",
-            "LTXVGemmaCLIPModelLoader": "clip",
+            "UNETLoader": "unet",
+            "VAELoader": "vae",
+            "LoraLoader": "loras",
+            "LoraLoaderModelOnly": "loras",
+            "ControlNetLoader": "controlnet",
+            "LatentUpscaleModelLoader": "upscale_models",
             "LoadBackgroundRemovalModel": "background_removal",
             "UpscaleModelLoader": "upscale_models"
         }
@@ -127,10 +125,23 @@ class WorkflowParser:
 
         for model in workflow_data["model_list"]:
             # If model path is NOT in the workflow, detect via the node type and assign the folder.
-            if model["model_path"] == "":
+            if model["model_path"] is None or model["model_path"] == "":
                 model.update({"model_path" : self.NODE_TYPE_TO_FOLDER.get(model["node_type"])})
             n = model.get("model_name", "")
 
+            if model["model_path"] is None or model["model_path"] == "":
+                """
+                IMPORTANT:
+                    If the model path is still None or empty after checking the NODE_TYPE_TO_FOLDER mappings,
+                    it means that the node type is not recognized and there is no folder specified for it in
+                    the workflow. In this case, we should log a warning to inform the user that the model path 
+                    is missing and suggest either updating the workflow.json or manually adding a mapping for the 
+                    node type in 'config_path_map.json' so it works correctly. This is crucial for ensuring that the 
+                    model can be located and managed properly.
+                """
+                print(f"{self.env.ico.get('WRN')}Warning: Model '{n}' in custom node type '{model["node_type"]}' has no model path. Update your workflow or add a mapping in 'config_path_map.json' to avoid this warning.")
+                continue
+            
             active_size = self.get_active_size(model.get("model_path",""), model.get('model_name',""))
             vault_size  = self.get_vault_size(model.get("model_name", ""))
 
