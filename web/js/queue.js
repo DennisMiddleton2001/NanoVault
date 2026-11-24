@@ -1,12 +1,13 @@
 /**
- * Single-worker serial queue state machine.
+ * Single-worker serial queue state machine with live stream forwarding.
  */
 export class NanoVaultQueue {
-  constructor(executorFn, onStateChange) {
+  constructor(executorFn, onStateChange, onStreamChunk = null) {
     this.queue = [];
     this.activeTask = null;
     this.executorFn = executorFn;
     this.onStateChange = onStateChange;
+    this.onStreamChunk = onStreamChunk;
   }
 
   enqueue(flag, workflow) {
@@ -30,8 +31,18 @@ export class NanoVaultQueue {
     this.activeTask.startedAt = new Date();
     this.notify();
 
+    const currentTaskId = this.activeTask.id;
+
     try {
-      const response = await this.executorFn(this.activeTask.flag, this.activeTask.filePath);
+      const response = await this.executorFn(
+        this.activeTask.flag,
+        this.activeTask.filePath,
+        (chunk) => {
+          if (this.onStreamChunk) {
+            this.onStreamChunk(currentTaskId, chunk);
+          }
+        }
+      );
       this.activeTask.rawResult = response;
     } catch (err) {
       this.activeTask.rawResult = {

@@ -16,7 +16,8 @@ class ModelFetcher:
         # Extract the network location (domain) from the full URL string
         parsed_url = urlparse(url=url)
         domain = parsed_url.netloc
-        wget_cmd = ["wget", "-c", "-O", download_file_path]
+        wget_cmd = ["wget", "-c", "-q", "--show-progress", "--progress=bar:force:noscroll", "-O", download_file_path]
+        
         match domain:
             case "huggingface.co":
                 if len(self.env.hf_token) > 8:

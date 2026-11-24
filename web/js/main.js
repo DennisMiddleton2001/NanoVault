@@ -1,34 +1,38 @@
-import { fetchWorkflows, fetchMetalStorage, runPipeline, auditModel } from './api.js';
+import { fetchWorkflows, fetchMetalStorage, runPipelineStream, auditModel } from './api.js';
 import { formatBytes, evaluateWorkflowStatus, parsePipelineResponse, parseModelAuditResponse } from './parser.js';
 import { NanoVaultQueue } from './queue.js';
 import { buildModelInspectorData } from './ui.js';
 
 const { createApp, ref, onMounted, nextTick } = Vue;
 
+const MAX_STREAM_LINES = 1000;
+
+const FLAG_LABELS = {
+  '--a': 'DeploymentPipeline',
+  '--as': 'SpotDeploy',
+  '--i': 'IngestPipeline',
+  '--t': 'TrimPipeline',
+  '--e': 'EvictPipeline'
+};
+
 createApp({
   setup() {
     const workflowPath = ref('');
 
-    // Define the update function first
     function updateWorkflowPath(newPath) {
       workflowPath.value = newPath;
       localStorage.setItem('sanctuary_workflow_path', newPath);
     }
 
-    // Unconditionally fetch the path on load
     fetch('/api/config/workflow-path', { cache: 'no-store' })
       .then(res => res.json())
       .then(data => {
         if (data.status === "SUCCESS") {
           updateWorkflowPath(data.workflow_path);
-          
-          // Automatically trigger the list refresh
-          // (This works perfectly because the async wait allows setup() to finish defining it below)
-          loadWorkflows(); 
+          loadWorkflows();
         }
       })
       .catch(err => console.error('Fetch failed:', err));
-    
 
     // Core dashboard state
     const workflows = ref([]);
@@ -89,46 +93,103 @@ createApp({
       }
     };
 
-    const scrollToBottom = async () => {
+    // Smart auto-scroll for an individual card's live console box
+    const scrollConsoleIfPinned = async (taskId) => {
+      const el = document.querySelector(`[data-console-id="${taskId}"]`);
+      const wasNearBottom = !el || (el.scrollHeight - el.scrollTop - el.clientHeight < 48);
       await nextTick();
-      const container = document.querySelector('.overflow-y-auto.font-mono');
-      if (container) container.scrollTop = container.scrollHeight;
+      if (wasNearBottom) {
+        const updatedEl = document.querySelector(`[data-console-id="${taskId}"]`);
+        if (updatedEl) {
+          updatedEl.scrollTop = updatedEl.scrollHeight;
+        }
+      }
     };
 
-    const copyLogEntry = async (entry) => {
-          const lines = [
-            `[${entry.statusText}] ${entry.command} — ${entry.target} (${entry.timestamp})`
-          ];
+    const WGET_DOT_REGEX = /^\s*\d+K\s+[.\s]+/;
 
-          if (entry.message) {
-            lines.push(entry.message);
+    // Appends raw stdout/stderr text while collapsing \r bars AND wget dot-progress lines
+    const appendStreamChunk = (entry, chunk) => {
+      if (!chunk) return;
+      const normalized = chunk.replace(/\r\n/g, '\n');
+      if (entry.rawLogs.length === 0) {
+        entry.rawLogs.push('');
+      }
+
+      const tokens = normalized.split(/(\r|\n)/);
+      for (const token of tokens) {
+        if (!token) continue;
+        if (token === '\n') {
+          const lastIdx = entry.rawLogs.length - 1;
+          // If both the just-completed line and the one above it are wget dot lines, overwrite in place
+          if (
+            lastIdx >= 1 &&
+            WGET_DOT_REGEX.test(entry.rawLogs[lastIdx]) &&
+            WGET_DOT_REGEX.test(entry.rawLogs[lastIdx - 1])
+          ) {
+            entry.rawLogs[lastIdx - 1] = entry.rawLogs[lastIdx];
+            entry.rawLogs[lastIdx] = '';
+          } else {
+            entry.rawLogs.push('');
           }
 
-          if (Array.isArray(entry.categories) && entry.categories.length > 0) {
-            entry.categories.forEach(cat => {
-              lines.push('');
-              lines.push(`${cat.label.toUpperCase()} (${cat.items.length}):`);
-              cat.items.forEach(item => lines.push(`• ${item}`));
-            });
+          entry._crPending = false;
+          if (entry.rawLogs.length > MAX_STREAM_LINES) {
+            entry.rawLogs.splice(0, entry.rawLogs.length - MAX_STREAM_LINES);
           }
-
-          try {
-            await navigator.clipboard.writeText(lines.join('\n'));
-            addToast("Copied", `${entry.command} result copied to clipboard.`);
-          } catch (err) {
-            addToast("Error", "Failed to copy result to clipboard.");
+        } else if (token === '\r') {
+          entry._crPending = true;
+        } else {
+          const lastIdx = entry.rawLogs.length - 1;
+          if (entry._crPending) {
+            entry.rawLogs[lastIdx] = token;
+            entry._crPending = false;
+          } else {
+            entry.rawLogs[lastIdx] += token;
           }
-        };
+        }
+      }
+    };
+    // Light syntax tinting for streamed console lines
+    const getConsoleLineClass = (line) => {
+      if (!line) return 'text-slate-400';
+      if (/error|failed|exception|traceback|fatal/i.test(line)) return 'text-rose-400';
+      if (/warn|warning|retrying/i.test(line)) return 'text-amber-300';
+      if (/100%|saved|success|complete|done/i.test(line)) return 'text-emerald-400';
+      return 'text-slate-300';
+    };
 
-    // Initialize the serial queue engine
+    // Initialize the serial queue engine with live stdout streaming
     const queueEngine = new NanoVaultQueue(
-      async (flag, filePath) => {
-        return await runPipeline(flag, filePath);
+      async (flag, filePath, onChunk) => {
+        return await runPipelineStream(flag, filePath, onChunk);
       },
       ({ activeTask: current, pendingCount: pending, completedTask }) => {
         activeTask.value = current;
         pendingCount.value = pending;
 
+        // 1. When a task starts, create its live In-Flight card at the top
+        if (current && !executionLogs.value.some(e => e.taskId === current.id)) {
+          executionLogs.value.unshift({
+            taskId: current.id,
+            isRunning: true,
+            command: FLAG_LABELS[current.flag] || current.flag,
+            target: current.workflowName,
+            statusText: 'RUNNING',
+            statusClass: 'border-amber-500/60 shadow-[0_0_16px_rgba(245,158,11,0.12)]',
+            badgeClass: 'bg-amber-950 text-amber-300 border border-amber-700 animate-pulse',
+            message: `Executing ${current.flag} on ${current.workflowName}...`,
+            ratio: '...',
+            categories: [],
+            rawLogs: [],
+            showRawLog: true,
+            _crPending: false,
+            timestamp: new Date().toLocaleTimeString()
+          });
+          scrollToTop();
+        }
+
+        // 2. When a task completes, transform its In-Flight card in place
         if (completedTask) {
           const raw = completedTask.rawResult;
           let parsed;
@@ -147,22 +208,53 @@ createApp({
             lastResult.value = `ERROR: ${raw.message}`;
           }
 
-          executionLogs.value.unshift({
-            command: parsed.command,
-            target: completedTask.workflowName,
-            statusText: parsed.statusText,
-            statusClass: parsed.statusClass,
-            badgeClass: parsed.badgeClass,
-            message: parsed.message,
-            ratio: parsed.ratio,
-            categories: parsed.categories,
-            timestamp: new Date().toLocaleTimeString()
-          });
+          const existingCard = executionLogs.value.find(e => e.taskId === completedTask.id);
+          if (existingCard) {
+            // Drop trailing empty placeholder line if present
+            if (existingCard.rawLogs.length > 0 && existingCard.rawLogs[existingCard.rawLogs.length - 1] === '') {
+              existingCard.rawLogs.pop();
+            }
 
-          // Refresh storage & workflows on completion
+            existingCard.isRunning = false;
+            existingCard.command = parsed.command;
+            existingCard.target = completedTask.workflowName;
+            existingCard.statusText = parsed.statusText;
+            existingCard.statusClass = parsed.statusClass;
+            existingCard.badgeClass = parsed.badgeClass;
+            existingCard.message = parsed.message;
+            existingCard.ratio = parsed.ratio;
+            existingCard.categories = parsed.categories;
+            existingCard.timestamp = new Date().toLocaleTimeString();
+            // Auto-collapse raw stdout on clean success; keep open on failure/partial
+            existingCard.showRawLog = parsed.statusText !== 'SUCCESS';
+          } else {
+            executionLogs.value.unshift({
+              taskId: completedTask.id,
+              isRunning: false,
+              command: parsed.command,
+              target: completedTask.workflowName,
+              statusText: parsed.statusText,
+              statusClass: parsed.statusClass,
+              badgeClass: parsed.badgeClass,
+              message: parsed.message,
+              ratio: parsed.ratio,
+              categories: parsed.categories,
+              rawLogs: [],
+              showRawLog: false,
+              timestamp: new Date().toLocaleTimeString()
+            });
+          }
+
           loadWorkflows();
           scrollToTop();
         }
+      },
+      // 3. Stream chunk handler -> feeds the matching In-Flight card live
+      (taskId, chunk) => {
+        const entry = executionLogs.value.find(e => e.taskId === taskId);
+        if (!entry) return;
+        appendStreamChunk(entry, chunk);
+        scrollConsoleIfPinned(taskId);
       }
     );
 
@@ -181,7 +273,7 @@ createApp({
         isRefreshing.value = false;
       }
     };
-    
+
     // Modal state for model inspector
     const inspectorModal = ref({
       isOpen: false,
@@ -192,9 +284,8 @@ createApp({
 
     const inspectWorkflow = (wf) => {
       const details = buildModelInspectorData(wf);
-      
+
       const summary = details.map(d => {
-        // Evaluate active and vault presence from state string or boolean flags
         const hasActive = d.state.includes('A');
         const hasVault  = d.state.includes('V');
 
@@ -205,7 +296,7 @@ createApp({
         const folderPath = d.folder ? `models/${d.folder}/` : 'models/';
         return `${tag} ${folderPath}${d.name}`;
       }).join('\n');
-      
+
       inspectorModal.value = {
         isOpen: true,
         title: `Model Dependencies: ${wf.name}`,
@@ -220,6 +311,31 @@ createApp({
         addToast("Copied", "Model list copied to clipboard.");
       } catch (err) {
         addToast("Error", "Failed to copy to clipboard.");
+      }
+    };
+
+    const copyLogEntry = async (entry) => {
+      const lines = [
+        `[${entry.statusText}] ${entry.command} — ${entry.target} (${entry.timestamp})`
+      ];
+
+      if (entry.message) {
+        lines.push(entry.message);
+      }
+
+      if (Array.isArray(entry.categories) && entry.categories.length > 0) {
+        entry.categories.forEach(cat => {
+          lines.push('');
+          lines.push(`${cat.label.toUpperCase()} (${cat.items.length}):`);
+          cat.items.forEach(item => lines.push(`• ${item}`));
+        });
+      }
+
+      try {
+        await navigator.clipboard.writeText(lines.join('\n'));
+        addToast("Copied", `${entry.command} result copied to clipboard.`);
+      } catch (err) {
+        addToast("Error", "Failed to copy result to clipboard.");
       }
     };
 
@@ -255,6 +371,8 @@ createApp({
           lastResult.value = `retval: ${JSON.stringify(raw.retval)}`;
 
           executionLogs.value.unshift({
+            taskId: `audit_${Date.now()}`,
+            isRunning: false,
             command: parsed.command,
             target: parsed.modelName,
             statusText: parsed.statusText,
@@ -263,10 +381,11 @@ createApp({
             message: parsed.message,
             ratio: parsed.ratio,
             categories: parsed.categories,
+            rawLogs: [],
+            showRawLog: false,
             timestamp: new Date().toLocaleTimeString()
           });
 
-          // Close the inspector modal if the user clicked a model from inside it
           if (inspectorModal.value.isOpen) {
             inspectorModal.value.isOpen = false;
           }
@@ -287,9 +406,11 @@ createApp({
     };
 
     const loadWorkflows = async () => {
-      //localStorage.setItem('sanctuary_workflow_path', workflowPath.value);
+      const targetPath = workflowPath.value?.trim();
+      if (!targetPath) return false;
+
       try {
-        const data = await fetchWorkflows(workflowPath.value);
+        const data = await fetchWorkflows(targetPath);
         if (data.status === 'SUCCESS') {
           const rawList = Array.isArray(data.retval) ? data.retval : [];
 
@@ -330,8 +451,17 @@ createApp({
       addToast("Enqueued", `${flag} for ${wf.name}`);
     };
 
-    onMounted(() => {
-      loadWorkflows();
+    onMounted(async () => {
+      try {
+        const res = await fetch('/api/config/workflow-path', { cache: 'no-store' });
+        const data = await res.json();
+        if (data.status === 'SUCCESS' && data.workflow_path) {
+          updateWorkflowPath(data.workflow_path);
+          await loadWorkflows();
+        }
+      } catch (err) {
+        console.error('Failed to load workflow path:', err);
+      }
     });
 
     return {
@@ -351,6 +481,7 @@ createApp({
       enqueueCommand,
       inspectorModal,
       copyInspectorContent,
+      copyLogEntry,
       closeInspectorModal,
       inspectWorkflow,
       queryMetalStorage,
@@ -359,8 +490,8 @@ createApp({
       isAuditing,
       runModelAudit,
       clearModelAudit,
-      copyLogEntry,
-      isWorkflowHighlighted
+      isWorkflowHighlighted,
+      getConsoleLineClass
     };
   }
 }).mount('#app');
