@@ -136,6 +136,7 @@ source .venv/bin/activate
 * **Windows:**
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 ```
 
 After activation, there are three management modes  (depending on your preference).
