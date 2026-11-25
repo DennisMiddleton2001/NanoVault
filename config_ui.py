@@ -12,7 +12,7 @@ if model_utils not in sys.path:
 
 from model_utils.env_config import EnvironmentConfig
 
-DEFAULT_ICON = "icon.png"
+DEFAULT_ICON = "./web/assets/icon.png"
 
 def get_crest_base64() -> str:
     candidates = [
@@ -359,7 +359,7 @@ class NanoVaultConfigApp:
 
                 with ui.row().classes("w-full items-center justify-between pt-1 no-wrap"):
                     self.hash_checkbox = ui.checkbox(
-                        "Enable Fast Hashing (XXH64 Sample Verification)",
+                        "Enable Fast Hashing (XXH128 if true, else SHA256)",
                         value=self.fast_hash,
                         on_change=self.mark_dirty
                     ).classes("text-xs text-slate-300")
